@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DocumentType } from '../types';
 import { generateDocument, LiveSession } from '../services/geminiService';
-import { Bot, ArrowLeft, Sparkles, FormInput, Mic, PhoneOff, MicOff } from 'lucide-react';
+import { Bot, ArrowLeft, Sparkles, FormInput, Mic, PhoneOff, MicOff, GripVertical } from 'lucide-react';
 import { RichTextEditor } from './RichTextEditor';
 import * as THREE from 'three';
 
@@ -195,6 +195,12 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
   const [result, setResult] = useState('');
   const [inputMode, setInputMode] = useState<'form' | 'chat'>('form');
 
+  // Sidebar Resize State
+  const [sidebarWidth, setSidebarWidth] = useState(450);
+  const [isResizing, setIsResizing] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
   // Form State
   const [formData, setFormData] = useState({
     orgName: '',
@@ -227,6 +233,48 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const sphereRef = useRef<THREE.Mesh | null>(null);
   const frameIdRef = useRef<number>(0);
+
+  // Handle Resize and Desktop Check
+  useEffect(() => {
+    const checkDesktop = () => setIsDesktop(window.innerWidth >= 1024);
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      if (sidebarRef.current) {
+        const sidebarRect = sidebarRef.current.getBoundingClientRect();
+        const newWidth = e.clientX - sidebarRect.left;
+        
+        // Min 300px, Max 800px constraint
+        if (newWidth > 300 && newWidth < 800) {
+          setSidebarWidth(newWidth);
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
 
   useEffect(() => {
     return () => {
@@ -366,53 +414,31 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
         setResult(MOCK_GENERATED_DOC);
         setLoading(false);
     }, 2000);
-
-    /* 
-    // ORIGINAL API CALL (Unbound for demo)
-    try {
-      const text = await generateDocument(docType, formData);
-      setResult(text);
-    } catch (e) {
-      alert("Failed to generate document. Please check your API key.");
-    } finally {
-      setLoading(false);
-    }
-    */
   };
 
   const toggleLiveAgent = async () => {
     if (isLiveActive) {
-      // Disconnect Logic
       if (liveSessionRef.current) {
         liveSessionRef.current.disconnect();
         liveSessionRef.current = null;
       }
       setIsLiveActive(false);
     } else {
-      // DEMO OVERRIDE: Just show UI state without actual connection
       setIsLiveActive(true);
-      
-      /* 
-      // ORIGINAL CONNECTION LOGIC (Unbound for demo)
-      try {
-        setIsLiveActive(true);
-        liveSessionRef.current = new LiveSession((html) => {
-          setResult(html);
-        });
-        await liveSessionRef.current.connect();
-      } catch (e) {
-        console.error("Failed to connect live agent", e);
-        setIsLiveActive(false);
-        alert("Could not access microphone or connect to AI Agent.");
-      }
-      */
     }
   };
 
   return (
-    <div className="p-2 md:p-6 max-w-[1600px] mx-auto h-[100dvh] flex flex-col lg:flex-row gap-4 md:gap-6 overflow-hidden">
-      {/* Left Panel: Controls */}
-      <div className="w-full lg:w-[450px] flex-shrink-0 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col h-[40vh] lg:h-full transition-all duration-300">
+    <div className="p-2 md:p-6 max-w-[1600px] mx-auto h-[100dvh] flex flex-col lg:flex-row gap-4 lg:gap-0 overflow-hidden">
+      {/* Left Panel - Resizable on Desktop */}
+      <div 
+        ref={sidebarRef}
+        className="flex-shrink-0 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col h-[40vh] lg:h-full"
+        style={{ 
+            width: isDesktop ? sidebarWidth : '100%',
+            marginBottom: isDesktop ? 0 : '1rem'
+        }}
+      >
         <div className="p-4 md:p-5 border-b border-gray-200 dark:border-gray-700 flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <button onClick={onBack} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition">
@@ -551,8 +577,16 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
         )}
       </div>
 
-      {/* Right Panel: Editor */}
-      <div className="flex-1 h-[60vh] lg:h-full flex flex-col">
+      {/* Resize Handle (Desktop Only) */}
+      <div 
+         className="hidden lg:flex w-5 cursor-col-resize items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0 text-gray-400 hover:text-blue-500 select-none"
+         onMouseDown={() => setIsResizing(true)}
+      >
+         <GripVertical className="w-4 h-4" />
+      </div>
+
+      {/* Right Panel */}
+      <div className="flex-1 h-[60vh] lg:h-full flex flex-col min-w-0">
         {loading && !result ? (
           <div className="h-full bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400">
              <Bot className="w-16 h-16 mb-4 text-blue-500 animate-bounce" />
