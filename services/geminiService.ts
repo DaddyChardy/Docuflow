@@ -1,30 +1,42 @@
 import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, Type } from "@google/genai";
 import { DocumentType, BudgetLineItem, ChatMessage } from "../types";
 
+// FALLBACK KEY FOR TESTING PURPOSES ONLY
+// In production, this should be removed and strictly managed via Environment Variables.
+const FALLBACK_KEY = "AIzaSyBfperGLp6lhXd9Uz-U_inGt-SshTmc4KA";
+
 // Robust API Key Retrieval
 // Checks standard process.env (Next.js/CRA/Node) and import.meta.env (Vite)
 const getApiKey = () => {
   try {
+    let key = '';
+    
     // 1. Check process.env (Standard Node/Vercel/Next.js)
     if (typeof process !== 'undefined' && process.env) {
-      if (process.env.API_KEY) return process.env.API_KEY;
-      if (process.env.NEXT_PUBLIC_API_KEY) return process.env.NEXT_PUBLIC_API_KEY;
-      if (process.env.REACT_APP_API_KEY) return process.env.REACT_APP_API_KEY;
+      if (process.env.API_KEY) key = process.env.API_KEY;
+      else if (process.env.NEXT_PUBLIC_API_KEY) key = process.env.NEXT_PUBLIC_API_KEY;
+      else if (process.env.REACT_APP_API_KEY) key = process.env.REACT_APP_API_KEY;
     }
     
     // 2. Check import.meta.env (Vite)
     // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
+    if (!key && typeof import.meta !== 'undefined' && import.meta.env) {
       // @ts-ignore
-      if (import.meta.env.VITE_API_KEY) return import.meta.env.VITE_API_KEY;
+      if (import.meta.env.VITE_API_KEY) key = import.meta.env.VITE_API_KEY;
       // @ts-ignore
-      if (import.meta.env.API_KEY) return import.meta.env.API_KEY;
+      if (import.meta.env.API_KEY) key = import.meta.env.API_KEY;
     }
     
-    return '';
+    // 3. Use Fallback if no env var found
+    if (!key) {
+      console.log("Using Fallback API Key for testing.");
+      return FALLBACK_KEY;
+    }
+
+    return key;
   } catch (e) {
     console.warn("Error reading environment variables", e);
-    return '';
+    return FALLBACK_KEY;
   }
 };
 
@@ -130,8 +142,8 @@ export const generateDocument = async (
     });
     return response.text || "Error generating text.";
   } catch (error) {
-    console.error("AI Error:", error);
-    throw new Error("Failed to generate document.");
+    console.error("AI Generation Error Detailed:", error);
+    throw new Error(`Failed to generate document: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 
