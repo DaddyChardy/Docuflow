@@ -41,7 +41,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
       }}
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition mb-1 ${
         currentView === id 
-          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 font-medium' 
+          ? 'bg-black text-white dark:bg-gray-700 font-medium shadow-md' 
           : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
       }`}
     >
@@ -54,8 +54,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       
       {/* Mobile Header */}
-      <div className="md:hidden bg-emerald-800 text-white p-4 flex justify-between items-center z-50 sticky top-0">
-        <span className="font-bold text-lg">NEMSU DocuFlow</span>
+      <div className="md:hidden bg-black text-white p-4 flex justify-between items-center z-50 sticky top-0">
+        <span className="font-serif italic text-xl">SmartDraft</span>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
           {isMobileMenuOpen ? <X /> : <Menu />}
         </button>
@@ -67,13 +67,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
         flex flex-col
       `}>
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-center">
+        <div className="p-8 border-b border-gray-200 dark:border-gray-700 flex items-center justify-center">
           <div className="flex flex-col items-center">
-            <div className="w-12 h-12 bg-emerald-800 rounded-full flex items-center justify-center text-white font-bold text-xl mb-2">
-              N
-            </div>
-            <span className="font-bold text-gray-800 dark:text-white">NEMSU AI</span>
-            <span className="text-xs text-gray-500">DocuFlow System</span>
+            <h1 className="text-3xl font-serif italic text-gray-900 dark:text-white mb-1">
+              SmartDraft
+            </h1>
+            <span className="text-[10px] uppercase tracking-widest text-gray-500">Automation System</span>
           </div>
         </div>
 

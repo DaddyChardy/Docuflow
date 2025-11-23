@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NEMSU AI DocuFlow</title>
+    <title>SmartDraft</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -16,6 +16,9 @@
                 gold: '#FFD700',  // Gold
                 light: '#F3F4F6',
               }
+            },
+            fontFamily: {
+              serif: ['"Times New Roman"', 'Times', 'serif'],
             }
           }
         }
@@ -60,7 +63,7 @@
 }
 </script>
 </head>
-  <body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-200">
+  <body class="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-200">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
   </body>
