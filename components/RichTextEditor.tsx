@@ -1,26 +1,44 @@
-
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { 
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, 
-  List, ListOrdered, Undo, Redo, Copy, Check, Printer, Maximize2, Minimize2, X
+  List, ListOrdered, Undo, Redo, Save, Eye, FileText, Mic, MicOff, Check
 } from 'lucide-react';
 
 interface RichTextEditorProps {
   initialContent: string;
+  onToggleVoice?: () => void;
+  isVoiceActive?: boolean;
 }
 
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ initialContent }) => {
+// A4 Dimensions in Pixels (approx at 96 DPI)
+const PAGE_HEIGHT = 1123; 
+const PAGE_WIDTH = 794; 
+const PAGE_MARGIN = 96; // 1 inch approx
+
+export const RichTextEditor: React.FC<RichTextEditorProps> = ({ initialContent, onToggleVoice, isVoiceActive }) => {
   const editorRef = useRef<HTMLDivElement>(null);
-  const [isCopied, setIsCopied] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
-  const [pageCount, setPageCount] = useState(1);
+  const [contentHeight, setContentHeight] = useState(PAGE_HEIGHT);
 
   // Update content when initialContent (generated text) changes
   useEffect(() => {
     if (editorRef.current && initialContent) {
       editorRef.current.innerHTML = initialContent;
+      checkHeight();
     }
   }, [initialContent]);
+
+  // Monitor Content Height
+  useEffect(() => {
+    if (!editorRef.current) return;
+    const observer = new ResizeObserver(() => checkHeight());
+    observer.observe(editorRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil((contentHeight + 100) / PAGE_HEIGHT));
+  }, [contentHeight]);
 
   const execCommand = (command: string, value: string | undefined = undefined) => {
     document.execCommand(command, false, value);
@@ -30,25 +48,18 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ initialContent }
 
   const checkHeight = () => {
     if (editorRef.current) {
-        // A4 height in pixels approx 1123px (at 96 DPI)
-        const height = editorRef.current.clientHeight;
-        const pages = Math.ceil((height + 200) / 1123); // +200 for header/margins
-        if (pages !== pageCount) setPageCount(pages > 0 ? pages : 1);
+        setContentHeight(editorRef.current.scrollHeight);
     }
   }
 
-  const handleCopy = () => {
-    if (editorRef.current) {
-      const text = editorRef.current.innerText;
-      navigator.clipboard.writeText(text);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    }
+  const handleSave = () => {
+    alert("Document saved successfully!");
   };
 
-  const handlePrint = () => {
-    const printContent = document.getElementById('document-paper-wrapper');
-    if (!printContent) return;
+  const handleExportPDF = () => {
+    const editorContent = editorRef.current?.innerHTML || '';
+    const headerContent = document.getElementById('doc-header-content')?.innerHTML || '';
+    const footerContent = document.getElementById('doc-footer-content')?.innerHTML || '';
     
     const printWindow = window.open('', '', 'width=900,height=1200');
     if (!printWindow) return;
@@ -56,50 +67,101 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ initialContent }
     printWindow.document.write(`
       <html>
         <head>
-          <title>Print Document</title>
+          <title>${document.title || 'Exported Document'}</title>
           <script src="https://cdn.tailwindcss.com"></script>
           <style>
             @media print {
-              @page { margin: 0; size: A4; }
-              body { -webkit-print-color-adjust: exact; margin: 0; }
-              /* Ensure thead and tfoot repeat on every page */
+              @page { 
+                size: A4; 
+                margin: 10mm 15mm; 
+              }
+              body { 
+                margin: 0;
+                font-family: 'Times New Roman', Times, serif;
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact;
+                color: black;
+                background: white;
+              }
+              
+              /* Print Layout Structure - Uses Table to repeat Header/Footer */
+              table { width: 100%; border-collapse: collapse; }
               thead { display: table-header-group; }
               tfoot { display: table-footer-group; }
-              /* Hide visual page gaps for print */
-              #document-paper-wrapper {
-                 background-image: none !important;
-                 background-color: white !important;
-                 box-shadow: none !important;
-                 margin: 0 !important;
-                 padding: 10mm !important;
-                 width: 100% !important;
-                 min-height: auto !important;
-              }
-              /* Content adjustment */
-              td { vertical-align: top; }
               
-              /* Force table borders in print */
-              table, th, td {
-                border-collapse: collapse;
+              .print-header {
+                width: 100%;
+                text-align: center;
+                margin-bottom: 20px;
               }
-              .border-table td, .border-table th {
-                border: 1px solid black !important;
+              
+              .print-footer {
+                width: 100%;
+                margin-top: 20px;
               }
+
+              .print-content {
+                font-size: 12pt;
+                line-height: 1.5;
+                text-align: justify;
+                padding-top: 10px;
+                padding-bottom: 10px;
+              }
+              
+              /* Ensure tables look right */
+              .print-content table { width: 100%; border-collapse: collapse; margin-bottom: 1em; }
+              .print-content th, .print-content td { border: 1px solid black; padding: 4px 8px; vertical-align: top; text-align: left; }
+              
+              /* Signatories / No Border Tables */
+              .print-content table.no-border, .print-content table.no-border td { border: none !important; }
+              
+              /* Prevent breaking inside tables/signatories */
+              table, tr, td, .keep-together { page-break-inside: avoid; }
             }
           </style>
         </head>
-        <body class="bg-white">
-          ${printContent.outerHTML}
+        <body>
+          <table>
+            <thead>
+              <tr>
+                <td>
+                  <div class="print-header">
+                     ${headerContent}
+                  </div>
+                </td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="print-content">
+                    ${editorContent}
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>
+                  <div class="print-footer">
+                     ${footerContent}
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+          <script>
+            window.onload = () => {
+                setTimeout(() => {
+                    window.print();
+                    window.close();
+                }, 1000);
+            };
+          </script>
         </body>
       </html>
     `);
     printWindow.document.close();
-    
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
-    }, 500);
   };
 
   const ToolbarButton = ({ icon: Icon, cmd, arg, title }: any) => (
@@ -108,33 +170,35 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ initialContent }
         e.preventDefault();
         execCommand(cmd, arg);
       }}
-      className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition"
+      className="p-1.5 md:p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition"
       title={title}
     >
-      <Icon className="w-4 h-4" />
+      <Icon className="w-4 h-4 md:w-5 md:h-5" />
     </button>
   );
 
-  const DocumentHeader = () => (
-    <div className="flex flex-col items-center text-center font-serif border-b-2 border-blue-900/80 pb-4 mb-8 w-full select-none" contentEditable={false}>
-      <div className="mb-2 flex items-center justify-center">
+  const DocumentHeaderContent = () => (
+    <div id="doc-header-content" className="flex flex-col items-center justify-center pt-4 text-center font-serif">
+      <div className="flex items-center justify-center mb-2">
           <img 
             src="https://scontent.ftdg1-1.fna.fbcdn.net/v/t39.30808-6/323766341_1815321958848574_2117577963714806811_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeF0pB7omAB0Hs0EpFMi_0gZwAVcbrVbqabABVxutVuppqcF0Aueh0wANR0alAlX-J6jLjEcX8e9d1vbkNISXj3N&_nc_ohc=gMfzxv9KRkcQ7kNvwFcFgqa&_nc_oc=AdlGXE4dig6-cPjQUBih7VKi_-gxfr7zNKSq47IMZGPNpEAOamq7DdbcNwyO6YLSKdg&_nc_zt=23&_nc_ht=scontent.ftdg1-1.fna&_nc_gid=8XXB00fpTHe-ZMnFghur6A&oh=00_AfgpJgyeM22JoPjAt-uOPdKItgI8xeInCzjaYyJT3NGrtA&oe=69285512" 
             alt="NEMSU Logo" 
-            className="w-20 h-20 object-contain"
+            className="w-12 h-12 md:w-16 md:h-16 object-contain"
           />
       </div>
-      <p className="text-[10pt]">Republic of the Philippines</p>
-      <h1 className="text-[12pt] font-bold uppercase text-blue-900 tracking-wide">
+      <p className="text-[9pt] md:text-[10pt] leading-tight">Republic of the Philippines</p>
+      <h1 className="text-[10pt] md:text-[12pt] font-bold uppercase text-blue-900 tracking-wide leading-tight">
         North Eastern Mindanao State University
       </h1>
+      <div className="w-[85%] border-b-2 border-blue-900/80 mt-2 mx-auto"></div>
     </div>
   );
 
-  const DocumentFooter = () => (
-    <div className="border-t border-blue-900/50 pt-2 mt-8 w-full select-none" contentEditable={false}>
-      <div className="flex items-end justify-between text-[9pt] font-sans text-gray-600">
-          <div className="space-y-1">
+  const DocumentFooterContent = () => (
+    <div id="doc-footer-content" className="flex flex-col justify-end pt-4 pb-2 px-8">
+      <div className="border-t border-blue-900/50 w-full mb-2"></div>
+      <div className="flex items-end justify-between text-[8pt] font-sans text-gray-600">
+          <div className="space-y-0.5">
             <div className="flex items-center gap-2">
                 <span>📍</span>
                 <span>NEMSU Main Campus, Tandag City</span>
@@ -150,17 +214,17 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ initialContent }
           </div>
           
           <div className="flex gap-2">
-            <div className="h-10 w-10 border border-gray-300 flex flex-col items-center justify-center bg-gray-50">
-                <span className="text-[6px] font-bold">ISO</span>
-                <span className="text-[6px]">9001</span>
+            <div className="h-8 w-8 border border-gray-300 flex flex-col items-center justify-center bg-gray-50">
+                <span className="text-[5px] font-bold">ISO</span>
+                <span className="text-[5px]">9001</span>
             </div>
-            <div className="h-10 w-10 border border-gray-300 flex flex-col items-center justify-center bg-gray-50">
-                <span className="text-[6px] font-bold">UKAS</span>
-                <span className="text-[6px]">✔</span>
+            <div className="h-8 w-8 border border-gray-300 flex flex-col items-center justify-center bg-gray-50">
+                <span className="text-[5px] font-bold">UKAS</span>
+                <span className="text-[5px]">✔</span>
             </div>
           </div>
       </div>
-      <div className="text-center text-[8pt] text-gray-400 mt-2">
+      <div className="text-center text-[7pt] text-gray-400 mt-1">
           System Generated by NEMSU AI DocuFlow
       </div>
     </div>
@@ -172,154 +236,121 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ initialContent }
 
   return (
     <div className={containerClasses}>
-      {/* Styles for content mimicking Word tables */}
       <style>{`
-        .document-editor table {
-          border-collapse: collapse;
-          width: 100%;
-          margin-bottom: 1em;
+        .document-editor table { border-collapse: collapse; width: 100%; margin-bottom: 1em; }
+        .document-editor th, .document-editor td { border: 1px solid black; padding: 4px 8px; vertical-align: top; }
+        .document-editor .no-border, .document-editor .no-border td { border: none !important; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Page Break Guide Line */
+        .page-guide {
+          position: absolute;
+          left: 0;
+          right: 0;
+          height: 1px;
+          border-top: 1px dashed #ef4444;
+          pointer-events: none;
+          opacity: 0.5;
+          z-index: 10;
         }
-        .document-editor th, .document-editor td {
-          border: 1px solid black;
-          padding: 4px 8px;
-          vertical-align: top;
-        }
-        .document-editor .no-border td {
-          border: none;
+        .page-guide::after {
+          content: 'Page Break';
+          position: absolute;
+          right: 10px;
+          top: -10px;
+          font-size: 10px;
+          color: #ef4444;
+          background: white;
+          padding: 0 4px;
         }
       `}</style>
 
       {/* Toolbar */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 p-2 flex items-center gap-1 flex-wrap shadow-sm z-10 shrink-0">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 p-2 flex items-center gap-1 flex-wrap shadow-sm z-10 shrink-0 justify-start">
         <ToolbarButton icon={Undo} cmd="undo" title="Undo" />
         <ToolbarButton icon={Redo} cmd="redo" title="Redo" />
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2" />
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2 hidden sm:block" />
         <ToolbarButton icon={Bold} cmd="bold" title="Bold" />
         <ToolbarButton icon={Italic} cmd="italic" title="Italic" />
         <ToolbarButton icon={Underline} cmd="underline" title="Underline" />
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2" />
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2 hidden sm:block" />
         <ToolbarButton icon={AlignLeft} cmd="justifyLeft" title="Align Left" />
         <ToolbarButton icon={AlignCenter} cmd="justifyCenter" title="Align Center" />
         <ToolbarButton icon={AlignRight} cmd="justifyRight" title="Align Right" />
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2" />
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2 hidden sm:block" />
         <ToolbarButton icon={List} cmd="insertUnorderedList" title="Bullet List" />
         <ToolbarButton icon={ListOrdered} cmd="insertOrderedList" title="Numbered List" />
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2" />
-        <button
-           onMouseDown={(e) => { e.preventDefault(); execCommand('formatBlock', 'H2'); }}
-           className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition font-bold"
-           title="Heading"
-        >
-          H1
+        <div className="flex-1 min-w-[10px]" />
+        
+        <button onClick={handleSave} className="p-2 text-blue-600 hover:bg-blue-50 rounded transition flex items-center gap-2 text-sm font-medium">
+          <Save className="w-4 h-4" /> <span className="hidden lg:inline">Save</span>
         </button>
-        <div className="flex-1" />
-        <button onClick={handleCopy} className="p-2 text-emerald-600 hover:bg-emerald-50 rounded transition flex items-center gap-2 text-sm font-medium">
-          {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-          <span className="hidden sm:inline">{isCopied ? 'Copied' : 'Copy'}</span>
-        </button>
-         <button onClick={handlePrint} className="p-2 text-blue-600 hover:bg-blue-50 rounded transition flex items-center gap-2 text-sm font-medium">
-          <Printer className="w-4 h-4" />
-          <span className="hidden sm:inline">Print</span>
-        </button>
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2" />
         <button 
           onClick={() => setIsMaximized(!isMaximized)} 
-          className={`p-2 rounded transition flex items-center gap-2 text-sm font-medium ${isMaximized ? 'bg-emerald-100 text-emerald-700' : 'text-gray-600 hover:bg-gray-100'}`}
-          title={isMaximized ? "Exit Focus Mode" : "Focus Mode"}
+          className={`p-2 rounded transition flex items-center gap-2 text-sm font-medium ${isMaximized ? 'bg-blue-100 text-blue-700' : 'text-blue-600 hover:bg-blue-50'}`}
         >
-          {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          <Eye className="w-4 h-4" /> <span className="hidden lg:inline">Preview</span>
+        </button>
+        <button onClick={handleExportPDF} className="ml-2 px-3 py-1.5 md:px-4 md:py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg transition flex items-center gap-2 text-sm font-bold shadow-sm">
+          <FileText className="w-4 h-4" /> <span className="hidden sm:inline">PDF</span>
         </button>
       </div>
 
-      {/* Workspace */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center bg-gray-200 dark:bg-gray-900/50" onClick={checkHeight} onKeyUp={checkHeight}>
+      {/* Editor Workspace - Allows horizontal scroll for the A4 paper */}
+      <div className="flex-1 overflow-auto bg-gray-200 dark:bg-gray-900/50 flex flex-col items-center p-4 md:p-8 custom-scrollbar">
         
-        {/* Paper Container */}
+        {/* The Paper */}
         <div 
-          id="document-paper-wrapper"
-          className="
-            w-[210mm] text-black shadow-2xl 
-            min-h-[297mm]
-            p-[10mm]
-            relative
-          "
-          style={{ 
-            fontFamily: '"Times New Roman", Times, serif',
-            /* 
-               Creates a visual page break effect:
-               - 297mm White (A4)
-               - 10mm Gray (Gap)
-               - Repeats
-            */
-            backgroundImage: `repeating-linear-gradient(
-                to bottom,
-                #ffffff 0mm,
-                #ffffff 290mm, 
-                #d1d5db 290mm, 
-                #d1d5db 297mm
-            )`,
-            backgroundSize: '100% 297mm', // Force exact A4 repetition
-            marginBottom: '50px' // Allow scrolling past end
-          }}
+            className="bg-white text-black shadow-lg relative flex flex-col transition-all shrink-0"
+            style={{ 
+                width: PAGE_WIDTH, 
+                minHeight: Math.max(PAGE_HEIGHT, contentHeight + 200) // Ensure it grows
+            }}
         >
-          <table className="w-full h-full border-collapse">
-            <thead className="h-auto">
-              <tr>
-                <td className="border-0 p-0">
-                  <DocumentHeader />
-                </td>
-              </tr>
-            </thead>
-            <tfoot className="h-auto">
-              <tr>
-                <td className="align-bottom border-0 p-0">
-                   <div className="h-[5mm]" />
-                   <DocumentFooter />
-                </td>
-              </tr>
-            </tfoot>
-            <tbody className="w-full">
-              <tr>
-                <td className="align-top h-full border-0 p-0">
-                  <div 
-                    ref={editorRef}
-                    contentEditable
-                    onInput={checkHeight}
-                    className="
-                      outline-none 
-                      document-editor
-                      min-h-[180mm]
-                    "
-                    style={{
-                      fontSize: '12pt',
-                      lineHeight: '1.5'
-                    }}
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
+            {/* Visual Page Break Guides */}
+            {Array.from({ length: totalPages }).map((_, i) => i > 0 && (
+                <div key={i} className="page-guide" style={{ top: i * PAGE_HEIGHT }} />
+            ))}
+
+            <DocumentHeaderContent />
+
+            <div 
+                ref={editorRef}
+                contentEditable
+                onInput={checkHeight}
+                onKeyUp={checkHeight}
+                className="outline-none document-editor flex-1"
+                style={{
+                    width: '100%',
+                    paddingLeft: PAGE_MARGIN,
+                    paddingRight: PAGE_MARGIN,
+                    paddingTop: 20,
+                    paddingBottom: 40,
+                    fontSize: '12pt',
+                    lineHeight: '1.5',
+                }}
+            />
+
+            <DocumentFooterContent />
         </div>
+
+        <div className="h-20" />
       </div>
       
       {/* Footer Info Bar */}
-      <div className="bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-1 text-xs text-gray-500 flex justify-between shrink-0">
-        <span>Page {pageCount} • A4 Layout • Gray bars indicate page breaks</span>
-        <span>
-            {isMaximized && (
-                <button onClick={() => setIsMaximized(false)} className="text-emerald-600 font-bold hover:underline ml-2">
-                    Exit Focus Mode (Esc)
-                </button>
-            )}
-        </span>
+      <div className="bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-1 text-xs text-gray-500 flex justify-between shrink-0 z-20">
+        <span>Height: {contentHeight}px • Est. Pages: {totalPages}</span>
+        <span className="hidden sm:inline">A4 Layout</span>
       </div>
-      
-      {isMaximized && (
+
+      {/* Voice Agent Button */}
+      {isMaximized && onToggleVoice && (
         <button 
-            onClick={() => setIsMaximized(false)}
-            className="fixed top-4 right-4 z-[60] bg-white text-gray-800 p-2 rounded-full shadow-lg hover:bg-gray-100 transition"
+            onClick={onToggleVoice}
+            className={`fixed bottom-8 right-8 z-[60] p-4 rounded-full shadow-2xl transition-all hover:scale-110 flex items-center justify-center ${isVoiceActive ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
         >
-            <X className="w-6 h-6" />
+            {isVoiceActive ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
         </button>
       )}
     </div>

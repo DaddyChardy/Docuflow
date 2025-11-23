@@ -10,6 +10,90 @@ interface DocumentGeneratorProps {
   onBack: () => void;
 }
 
+// MOCK DATA FOR DEMO PURPOSES
+const MOCK_GENERATED_DOC = `
+<div style="font-family: 'Times New Roman', serif;">
+  <p style="text-align: center; font-weight: bold; font-size: 14pt;">ACTIVITY PROPOSAL</p>
+  <br>
+  <table style="width: 100%; border-collapse: collapse; border: 1px solid black;">
+    <tr><td style="border: 1px solid black; padding: 5px;"><strong>Title of Activity</strong></td><td style="border: 1px solid black; padding: 5px;">CITE Days 2024</td></tr>
+    <tr><td style="border: 1px solid black; padding: 5px;"><strong>Target Participants</strong></td><td style="border: 1px solid black; padding: 5px;">All CITE Students and Faculty</td></tr>
+    <tr><td style="border: 1px solid black; padding: 5px;"><strong>Venue</strong></td><td style="border: 1px solid black; padding: 5px;">NEMSU Gymnasium</td></tr>
+    <tr><td style="border: 1px solid black; padding: 5px;"><strong>Date</strong></td><td style="border: 1px solid black; padding: 5px;">October 24-25, 2024</td></tr>
+    <tr><td style="border: 1px solid black; padding: 5px;"><strong>Proponent</strong></td><td style="border: 1px solid black; padding: 5px;">Student Council</td></tr>
+    <tr><td style="border: 1px solid black; padding: 5px;"><strong>Total Budget</strong></td><td style="border: 1px solid black; padding: 5px;">PHP 15,000.00</td></tr>
+    <tr><td style="border: 1px solid black; padding: 5px;"><strong>Source of Fund</strong></td><td style="border: 1px solid black; padding: 5px;">Org Funds</td></tr>
+  </table>
+  <br>
+  <h3>I. RATIONALE</h3>
+  <p>The College of Information Technology Education (CITE) Days is an annual event designed to foster camaraderie and sportsmanship among students. This activity serves as a platform for students to showcase their skills in various technical and non-technical competitions. It aligns with the university's mission to provide holistic development for its student body.</p>
+  <br>
+  <h3>II. OBJECTIVES</h3>
+  <ol>
+    <li>To promote unity among CITE students.</li>
+    <li>To develop leadership and teamwork skills.</li>
+    <li>To provide a venue for showcasing talents.</li>
+  </ol>
+  <br>
+  <h3>III. OUTCOMES</h3>
+  <ol>
+    <li>Improved student engagement and morale.</li>
+    <li>Successful execution of technical and sports competitions.</li>
+    <li>Strengthened bond between faculty and students.</li>
+  </ol>
+  <br>
+  <h3>IV. BUDGETARY REQUIREMENTS</h3>
+  <table style="width: 100%; border-collapse: collapse; border: 1px solid black;">
+    <tr style="background-color: #f0f0f0;">
+        <th style="border: 1px solid black; padding: 5px;">Particulars</th>
+        <th style="border: 1px solid black; padding: 5px;">Unit</th>
+        <th style="border: 1px solid black; padding: 5px;">Quantity</th>
+        <th style="border: 1px solid black; padding: 5px;">Unit Cost</th>
+        <th style="border: 1px solid black; padding: 5px;">Total Cost</th>
+    </tr>
+    <tr>
+        <td style="border: 1px solid black; padding: 5px;">Snacks</td>
+        <td style="border: 1px solid black; padding: 5px;">Packs</td>
+        <td style="border: 1px solid black; padding: 5px;">100</td>
+        <td style="border: 1px solid black; padding: 5px;">50.00</td>
+        <td style="border: 1px solid black; padding: 5px;">5,000.00</td>
+    </tr>
+    <tr>
+        <td style="border: 1px solid black; padding: 5px;">Decorations</td>
+        <td style="border: 1px solid black; padding: 5px;">Lot</td>
+        <td style="border: 1px solid black; padding: 5px;">1</td>
+        <td style="border: 1px solid black; padding: 5px;">5,000.00</td>
+        <td style="border: 1px solid black; padding: 5px;">5,000.00</td>
+    </tr>
+     <tr>
+        <td style="border: 1px solid black; padding: 5px;">Prizes/Awards</td>
+        <td style="border: 1px solid black; padding: 5px;">Lot</td>
+        <td style="border: 1px solid black; padding: 5px;">1</td>
+        <td style="border: 1px solid black; padding: 5px;">5,000.00</td>
+        <td style="border: 1px solid black; padding: 5px;">5,000.00</td>
+    </tr>
+  </table>
+  <br>
+  <h3>V. SIGNATORIES</h3>
+  <table style="width: 100%; border: none; margin-top: 20px;">
+    <tr>
+        <td style="border: none; width: 50%; padding-top: 30px;">Prepared by:<br><br><strong>JIM SHENDRICK</strong><br>Student Leader</td>
+        <td style="border: none; width: 50%; padding-top: 30px;">Noted by:<br><br><strong>ADVISER NAME</strong><br>Org Adviser</td>
+    </tr>
+    <tr>
+        <td style="border: none; width: 50%; padding-top: 30px;">Approved as to Appropriation:<br><br><strong>BUDGET OFFICER</strong></td>
+        <td style="border: none; width: 50%; padding-top: 30px;">Approved as to Funds:<br><br><strong>ACCOUNTANT</strong></td>
+    </tr>
+    <tr>
+        <td colspan="2" style="border: none; text-align: center; padding-top: 30px;">Recommending Approval:<br><br><strong>DEAN NAME</strong><br>Dean, CITE</td>
+    </tr>
+    <tr>
+        <td colspan="2" style="border: none; text-align: center; padding-top: 40px;">Approved:<br><br><strong>CAMPUS DIRECTOR</strong></td>
+    </tr>
+  </table>
+</div>
+`;
+
 // Shader for the visualizer sphere
 const vertexShader = `
 uniform float u_time;
@@ -91,8 +175,8 @@ varying vec3 vNormal;
 
 void main() {
   // Base color
-  vec3 colorA = vec3(0.0, 0.4, 0.0); // Dark Green (NEMSU)
-  vec3 colorB = vec3(1.0, 0.84, 0.0); // Gold (NEMSU)
+  vec3 colorA = vec3(0.1, 0.3, 0.8); // Royal Blue
+  vec3 colorB = vec3(0.5, 0.8, 1.0); // Light Blue
   
   // Mix based on normal and frequency
   float mixVal = (vNormal.y + 1.0) * 0.5;
@@ -143,7 +227,6 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const sphereRef = useRef<THREE.Mesh | null>(null);
   const frameIdRef = useRef<number>(0);
-  const dataArrayRef = useRef<Uint8Array | null>(null);
 
   useEffect(() => {
     return () => {
@@ -243,6 +326,12 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
                if (count > 0) {
                    avgFreq = sum / count; 
                }
+          } else if (isLiveActive) {
+            // FAKE FREQUENCY for demo purposes when not actually connected
+            // Create a pulsating effect using sine waves
+            const pulse = Math.sin(time * 3) * 0.5 + 0.5; // 0 to 1
+            const jitter = Math.random() * 0.2;
+            avgFreq = (pulse * 50) + (jitter * 20);
           }
           
           // Smooth the frequency value for the shader (0.0 to 1.0 range approximate)
@@ -271,6 +360,15 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
 
   const handleGenerate = async () => {
     setLoading(true);
+    
+    // DEMO OVERRIDE: Simulate generation without API call
+    setTimeout(() => {
+        setResult(MOCK_GENERATED_DOC);
+        setLoading(false);
+    }, 2000);
+
+    /* 
+    // ORIGINAL API CALL (Unbound for demo)
     try {
       const text = await generateDocument(docType, formData);
       setResult(text);
@@ -279,14 +377,23 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
     } finally {
       setLoading(false);
     }
+    */
   };
 
   const toggleLiveAgent = async () => {
     if (isLiveActive) {
-      liveSessionRef.current?.disconnect();
+      // Disconnect Logic
+      if (liveSessionRef.current) {
+        liveSessionRef.current.disconnect();
+        liveSessionRef.current = null;
+      }
       setIsLiveActive(false);
-      liveSessionRef.current = null;
     } else {
+      // DEMO OVERRIDE: Just show UI state without actual connection
+      setIsLiveActive(true);
+      
+      /* 
+      // ORIGINAL CONNECTION LOGIC (Unbound for demo)
       try {
         setIsLiveActive(true);
         liveSessionRef.current = new LiveSession((html) => {
@@ -298,14 +405,15 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
         setIsLiveActive(false);
         alert("Could not access microphone or connect to AI Agent.");
       }
+      */
     }
   };
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto h-screen flex flex-col lg:flex-row gap-6 overflow-hidden">
+    <div className="p-2 md:p-6 max-w-[1600px] mx-auto h-[100dvh] flex flex-col lg:flex-row gap-4 md:gap-6 overflow-hidden">
       {/* Left Panel: Controls */}
-      <div className="w-full lg:w-[450px] flex-shrink-0 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300">
-        <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex flex-col gap-4">
+      <div className="w-full lg:w-[450px] flex-shrink-0 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col h-[40vh] lg:h-full transition-all duration-300">
+        <div className="p-4 md:p-5 border-b border-gray-200 dark:border-gray-700 flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <button onClick={onBack} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition">
                 <ArrowLeft className="w-5 h-5" />
@@ -316,7 +424,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
           <div className="bg-gray-100 dark:bg-gray-700 p-1 rounded-lg flex">
               <button 
                 onClick={() => setInputMode('form')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition ${inputMode === 'form' ? 'bg-white dark:bg-gray-600 shadow text-emerald-700 dark:text-emerald-300' : 'text-gray-500'}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition ${inputMode === 'form' ? 'bg-white dark:bg-gray-600 shadow text-blue-700 dark:text-blue-300' : 'text-gray-500'}`}
               >
                   <FormInput className="w-4 h-4" /> Form Input
               </button>
@@ -325,7 +433,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
                     setInputMode('chat');
                     if(docType !== DocumentType.ACTIVITY_PROPOSAL) setDocType(DocumentType.ACTIVITY_PROPOSAL);
                 }}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition ${inputMode === 'chat' ? 'bg-white dark:bg-gray-600 shadow text-purple-700 dark:text-purple-300' : 'text-gray-500'}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition ${inputMode === 'chat' ? 'bg-white dark:bg-gray-600 shadow text-blue-700 dark:text-blue-300' : 'text-gray-500'}`}
               >
                   <Mic className="w-4 h-4" /> Voice Agent
               </button>
@@ -333,7 +441,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
         </div>
         
         {inputMode === 'form' ? (
-            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+            <div className="p-4 md:p-6 overflow-y-auto flex-1 space-y-6">
             <div>
                 <label className="block text-sm font-medium mb-2">Document Type</label>
                 <select 
@@ -353,13 +461,13 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
                 <input name="orgName" placeholder="Organization Name" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
                 <input name="title" placeholder="Activity Title" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
                 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input name="venue" placeholder="Venue" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
                     <input type="date" name="date" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
                 </div>
                 
                 <input name="proponent" placeholder="Proponent (Your Name)" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input name="budget" placeholder="Est. Budget (e.g. 5,000)" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
                     <input name="source" placeholder="Source (e.g. STF)" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
                 </div>
@@ -391,7 +499,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
             <button 
                 onClick={handleGenerate}
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-emerald-600 to-emerald-800 text-white py-3 rounded-lg font-bold hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white py-3 rounded-lg font-bold hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
                 {loading ? (
                 <>
@@ -404,20 +512,20 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
             </div>
         ) : (
             // Voice Agent Interface with Three.js Visualizer
-            <div className="flex flex-col flex-1 h-full bg-black relative overflow-hidden">
+            <div className="flex flex-col flex-1 h-full bg-black relative overflow-hidden rounded-b-xl lg:rounded-b-none lg:rounded-br-none">
                 {/* Visualizer Canvas Container */}
                 <div 
                   ref={canvasRef} 
                   className="absolute inset-0 w-full h-full z-0" 
-                  style={{ background: 'radial-gradient(circle at center, #1a2e1a 0%, #000000 70%)' }}
+                  style={{ background: 'radial-gradient(circle at center, #0a102e 0%, #000000 70%)' }}
                 />
 
                 {/* UI Overlay */}
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-end pb-12 pointer-events-none">
-                    <h3 className="text-2xl font-bold mb-2 text-white drop-shadow-md">
+                    <h3 className="text-xl md:text-2xl font-bold mb-2 text-white drop-shadow-md">
                         {isLiveActive ? "Listening..." : "NEMSU AI Agent"}
                     </h3>
-                    <p className="text-gray-300 mb-8 max-w-xs text-center drop-shadow-md">
+                    <p className="text-gray-300 mb-8 max-w-xs text-center drop-shadow-md text-sm md:text-base">
                         {isLiveActive 
                             ? "Discuss your event details. I'm visualizing your voice." 
                             : "Start a call to discuss your proposal with the AI Coordinator."}
@@ -426,16 +534,16 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
                     <button
                         onClick={toggleLiveAgent}
                         className={`
-                            px-8 py-4 rounded-full font-bold text-lg flex items-center gap-3 transition-all transform hover:scale-105 shadow-xl pointer-events-auto
+                            px-6 py-3 md:px-8 md:py-4 rounded-full font-bold text-base md:text-lg flex items-center gap-3 transition-all transform hover:scale-105 shadow-xl pointer-events-auto
                             ${isLiveActive 
                                 ? 'bg-red-500 hover:bg-red-600 text-white' 
-                                : 'bg-emerald-600 hover:bg-emerald-700 text-white'}
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'}
                         `}
                     >
                         {isLiveActive ? (
-                            <><PhoneOff className="w-6 h-6" /> End Call</>
+                            <><PhoneOff className="w-5 h-5 md:w-6 md:h-6" /> End Call</>
                         ) : (
-                            <><Mic className="w-6 h-6" /> Start Interview</>
+                            <><Mic className="w-5 h-5 md:w-6 md:h-6" /> Start Interview</>
                         )}
                     </button>
                 </div>
@@ -444,15 +552,19 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ initialTyp
       </div>
 
       {/* Right Panel: Editor */}
-      <div className="flex-1 h-full flex flex-col">
+      <div className="flex-1 h-[60vh] lg:h-full flex flex-col">
         {loading && !result ? (
           <div className="h-full bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400">
-             <Bot className="w-16 h-16 mb-4 text-emerald-500 animate-bounce" />
+             <Bot className="w-16 h-16 mb-4 text-blue-500 animate-bounce" />
              <p className="text-lg font-medium text-gray-600 dark:text-gray-300">Drafting your document...</p>
              <p className="text-sm">This uses the 2.5 Flash model for speed.</p>
           </div>
         ) : (
-          <RichTextEditor initialContent={result} />
+          <RichTextEditor 
+            initialContent={result} 
+            onToggleVoice={toggleLiveAgent}
+            isVoiceActive={isLiveActive}
+          />
         )}
       </div>
     </div>

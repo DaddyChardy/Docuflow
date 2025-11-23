@@ -49,12 +49,12 @@ export const BudgetCalculator: React.FC<BudgetCalculatorProps> = ({ onBack }) =>
   const totalBudget = items.reduce((sum, i) => sum + i.total, 0);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
        <div className="flex items-center gap-4 mb-4">
         <button onClick={onBack} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
+        <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
           <Calculator className="w-6 h-6 text-amber-500" /> Budget Calculator
         </h1>
       </div>
@@ -95,7 +95,7 @@ export const BudgetCalculator: React.FC<BudgetCalculatorProps> = ({ onBack }) =>
                     <button 
                       onClick={handleEstimate}
                       disabled={loadingEstimate || !newItem.item}
-                      className="bg-purple-100 text-purple-700 p-2 rounded hover:bg-purple-200 disabled:opacity-50"
+                      className="bg-purple-100 text-purple-700 p-2 rounded hover:bg-purple-200 disabled:opacity-50 flex-shrink-0"
                       title="AI Cost Estimate"
                     >
                       {loadingEstimate ? <Loader2 className="w-5 h-5 animate-spin"/> : <Sparkles className="w-5 h-5" />}
@@ -113,23 +113,23 @@ export const BudgetCalculator: React.FC<BudgetCalculatorProps> = ({ onBack }) =>
         </div>
 
         {/* Center: Table */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col min-h-[300px]">
           <h3 className="font-semibold mb-4">Line Items</h3>
           <div className="flex-1 overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-4 py-3">Item</th>
-                  <th className="px-4 py-3 text-center">Qty</th>
-                  <th className="px-4 py-3 text-right">Price</th>
-                  <th className="px-4 py-3 text-right">Total</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Item</th>
+                  <th className="px-4 py-3 text-center whitespace-nowrap">Qty</th>
+                  <th className="px-4 py-3 text-right whitespace-nowrap">Price</th>
+                  <th className="px-4 py-3 text-right whitespace-nowrap">Total</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody>
                 {items.map(item => (
                   <tr key={item.id} className="border-b dark:border-gray-700">
-                    <td className="px-4 py-3 font-medium">{item.item}</td>
+                    <td className="px-4 py-3 font-medium whitespace-nowrap">{item.item}</td>
                     <td className="px-4 py-3 text-center">{item.quantity}</td>
                     <td className="px-4 py-3 text-right">₱{item.unitPrice.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right font-bold">₱{item.total.toLocaleString()}</td>
@@ -148,7 +148,7 @@ export const BudgetCalculator: React.FC<BudgetCalculatorProps> = ({ onBack }) =>
               </tbody>
             </table>
           </div>
-          <div className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg flex justify-between items-center">
+          <div className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-2">
             <span className="text-lg font-bold text-emerald-900 dark:text-emerald-200">Grand Total</span>
             <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">₱{totalBudget.toLocaleString()}</span>
           </div>
@@ -157,12 +157,12 @@ export const BudgetCalculator: React.FC<BudgetCalculatorProps> = ({ onBack }) =>
 
       {/* Justification Section */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
            <h3 className="font-semibold">AI Budget Narrative</h3>
            <button 
              onClick={generateNarrative}
              disabled={items.length === 0 || loadingJustification}
-             className="text-sm bg-amber-100 text-amber-800 px-3 py-1 rounded-full hover:bg-amber-200 transition flex items-center gap-1 disabled:opacity-50"
+             className="text-sm bg-amber-100 text-amber-800 px-3 py-1 rounded-full hover:bg-amber-200 transition flex items-center gap-1 disabled:opacity-50 whitespace-nowrap"
            >
              {loadingJustification ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3" />} Generate Narrative
            </button>

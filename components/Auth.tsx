@@ -11,56 +11,63 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [isLoginView, setIsLoginView] = useState(true);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Admin Login
+    if (email === 'admin@nemsu.edu.ph' && password === 'admin') {
+      const adminUser: User = {
+        email,
+        name: 'Jim Shendrick',
+        role: UserRole.ADMIN,
+        organization: 'System Administration'
+      };
+      onLogin(adminUser);
+      return;
+    }
+
+    // Student Login
+    if (email === 'student@nemsu.edu.ph' && password === 'student') {
+      const studentUser: User = {
+        email,
+        name: 'Student Leader',
+        role: UserRole.STUDENT_LEADER,
+        organization: 'Supreme Student Council'
+      };
+      onLogin(studentUser);
+      return;
+    }
 
     if (!email.endsWith('@nemsu.edu.ph')) {
       setError('Please use your official @nemsu.edu.ph email address.');
       return;
     }
 
-    // Mock Login logic
-    const mockUser: User = {
-      email,
-      name: email.split('@')[0].replace('.', ' '),
-      role: UserRole.STUDENT_LEADER,
-      organization: 'Supreme Student Council'
-    };
-    onLogin(mockUser);
+    // Mock Fallback for other valid emails if needed, but for this task strictly enforcing the above
+    setError('Invalid credentials. Please use the demo accounts provided.');
   };
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-6">
       <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
         
-        {/* Left Side: Login Form */}
+        {/* Branding (First on Mobile, Last on Desktop) */}
+        <div className="text-center lg:text-left flex flex-col items-center lg:items-center justify-center p-4 lg:order-last">
+          <h1 className="text-6xl md:text-7xl font-serif italic text-blue-900 mb-6 drop-shadow-sm">
+            SmartDraft
+          </h1>
+          <p className="text-lg md:text-xl text-gray-600 font-serif max-w-lg leading-relaxed text-center">
+            AI-Powered Document Automation System — simplify your workflow, boost productivity, and automate your document generation efficiently.
+          </p>
+        </div>
+
+        {/* Login Form (Second on Mobile, First on Desktop) */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 md:p-10 max-w-md w-full mx-auto">
-          <h2 className="text-3xl font-serif italic text-center text-gray-900 mb-8">
+          <h2 className="text-3xl font-serif italic text-center text-blue-900 mb-8">
             Welcome Back!
           </h2>
-
-          {/* Toggle Switch */}
-          <div className="flex bg-gray-100 p-1 rounded-lg mb-8">
-            <button
-              onClick={() => setIsLoginView(true)}
-              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
-                isLoginView ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Login
-            </button>
-            <button
-              onClick={() => setIsLoginView(false)}
-              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
-                !isLoginView ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Sign Up
-            </button>
-          </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
@@ -71,8 +78,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition bg-white"
-                  placeholder="your.email@nemsu.edu.ph"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none transition bg-white"
+                  placeholder="name@nemsu.edu.ph"
                   required
                 />
               </div>
@@ -86,7 +93,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none transition bg-white"
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none transition bg-white"
                   placeholder="Enter your password"
                   required
                 />
@@ -102,10 +109,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center text-gray-600">
-                <input type="checkbox" className="mr-2 rounded border-gray-300 text-black focus:ring-black" />
+                <input type="checkbox" className="mr-2 rounded border-gray-300 text-blue-900 focus:ring-blue-900" />
                 Remember me
               </label>
-              <button type="button" className="text-gray-500 hover:text-black hover:underline">
+              <button type="button" className="text-gray-500 hover:text-blue-900 hover:underline">
                 Forgot password?
               </button>
             </div>
@@ -118,11 +125,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
             <button
               type="submit"
-              className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3.5 rounded-lg transition uppercase tracking-wide text-sm shadow-lg transform active:scale-95"
+              className="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-3.5 rounded-lg transition uppercase tracking-wide text-sm shadow-lg transform active:scale-95"
             >
               Login
             </button>
-
+            
             <button
               type="button"
               className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3.5 rounded-lg transition flex items-center justify-center gap-2 hover:bg-gray-50"
@@ -153,17 +160,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             </button>
           </form>
         </div>
-
-        {/* Right Side: Branding */}
-        <div className="text-center lg:text-left flex flex-col items-center lg:items-center justify-center p-4">
-          <h1 className="text-6xl md:text-7xl font-serif italic text-gray-900 mb-6 drop-shadow-sm">
-            SmartDraft
-          </h1>
-          <p className="text-lg md:text-xl text-gray-600 font-serif max-w-lg leading-relaxed text-center">
-            AI-Powered Document Automation System — simplify your workflow, boost productivity, and automate your document generation efficiently.
-          </p>
-        </div>
-
       </div>
     </div>
   );
