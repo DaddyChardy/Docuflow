@@ -1,0 +1,7 @@
+{
+  "name": "NEMSU AI DocuFlow",
+  "description": "A generative AI-based document automation web app for student leaders, featuring automated proposals, budget calculations, and document management.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
