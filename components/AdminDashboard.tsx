@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Users, FileText, Folder, Activity, HelpCircle, Plus, Database, History, X, Settings, CheckCircle, ChevronRight, Bell, Search, MoreVertical, Edit2, Trash2, Mail, Shield, User } from 'lucide-react';
+import { Users, FileText, Folder, Activity, Plus, Database, History, X, Settings, CheckCircle, ChevronRight, Bell, Search, Edit2, Trash2, Mail, Shield } from 'lucide-react';
 
 interface AdminDashboardProps {
   onNavigate: (page: string, params?: any) => void;
@@ -97,9 +97,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           <div className="flex gap-3">
               <button className="p-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-blue-600 transition shadow-sm active:scale-95 duration-200">
                   <Bell className="w-5 h-5" />
-              </button>
-              <button className="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-blue-600 font-medium transition shadow-sm flex items-center gap-2 active:scale-95 duration-200">
-                  <HelpCircle className="w-4 h-4" /> Support
               </button>
               <button 
                 onClick={() => onNavigate('generate')}
