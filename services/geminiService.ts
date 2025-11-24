@@ -46,6 +46,22 @@ const API_KEY = getApiKey();
 // Note: GoogleGenAI instance is created lazily in functions to handle potential missing keys gracefully during initialization
 const ai = new GoogleGenAI({ apiKey: API_KEY });
 
+// Helper to get AI Configuration from LocalStorage (Simulating Backend Settings)
+const getAISettings = () => {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('nemsu_ai_settings');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse AI settings", e);
+      }
+    }
+  }
+  // Defaults
+  return { tone: 'Formal', length: 'Standard' };
+};
+
 /**
  * Generates document content based on type and user input.
  */
@@ -60,6 +76,14 @@ export const generateDocument = async (
   const genAI = new GoogleGenAI({ apiKey: currentKey });
   
   const model = 'gemini-2.5-flash';
+  
+  // Get Admin-configured settings
+  const aiSettings = getAISettings();
+  const styleInstruction = `
+    STYLE & TONE INSTRUCTIONS:
+    - **Tone**: ${aiSettings.tone} (Ensure the language reflects this tone).
+    - **Length/Verbosity**: ${aiSettings.length} (Adjust paragraph length and detail accordingly).
+  `;
   
   let prompt = "";
   
@@ -84,8 +108,8 @@ export const generateDocument = async (
       - **Source**: ${formData.source || 'STF / IGP / Org Fund'}
       
       3. **BODY SECTIONS** (Use <h3> for headers, uppercase):
-      - **RATIONALE**: Write 2 paragraphs explaining the necessity of this event based on: ${formData.objectives}.
-      - **OBJECTIVES**: Provide a numbered list of 3-4 specific objectives.
+      - **RATIONALE**: Write explaining the necessity of this event based on: ${formData.objectives}.
+      - **OBJECTIVES**: Provide a numbered list of specific objectives.
       - **OUTCOMES**: Provide a numbered list of expected outcomes.
       
       4. **BUDGETARY REQUIREMENTS**:
@@ -137,7 +161,7 @@ export const generateDocument = async (
       contents: prompt,
       config: {
         temperature: 0.4, // Lower temperature for more structured/consistent output
-        systemInstruction: "You are an expert academic administrator. Output HTML only. Ensure tables have visible borders (1px solid black) where appropriate."
+        systemInstruction: `You are an expert academic administrator. Output HTML only. Ensure tables have visible borders (1px solid black) where appropriate.\n${styleInstruction}`
       }
     });
     return response.text || "Error generating text.";
@@ -175,11 +199,12 @@ export const generateBudgetJustification = async (items: BudgetLineItem[]): Prom
   const genAI = new GoogleGenAI({ apiKey: currentKey });
 
   const itemsList = items.map(i => `${i.item}: ${i.quantity} x ${i.unitPrice} PHP`).join('\n');
+  const aiSettings = getAISettings();
 
   try {
     const response = await genAI.models.generateContent({
       model: 'gemini-3-pro-preview', // Using Pro for better reasoning
-      contents: `Analyze the following budget items and write a 'Budget Narrative Justification' paragraph suitable for a student council proposal. Explain why these expenses are necessary for a successful event.\n\nItems:\n${itemsList}`,
+      contents: `Analyze the following budget items and write a 'Budget Narrative Justification' paragraph suitable for a student council proposal. Explain why these expenses are necessary for a successful event.\n\nItems:\n${itemsList}\n\nTone: ${aiSettings.tone}`,
     });
     return response.text || "";
   } catch (error) {

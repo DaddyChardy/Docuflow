@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { 
@@ -92,19 +93,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
                <LayoutIcon className="w-4 h-4" />
                <span className="hidden lg:inline">My Documents</span>
             </button>
-            {user.role === UserRole.ADMIN && (
-              <button 
-                onClick={() => handleNavigate('settings')}
-                className={`flex items-center gap-2 text-sm font-medium transition-colors ${
-                  currentView === 'settings'
-                    ? 'text-blue-600 dark:text-blue-400' 
-                    : 'text-gray-600 dark:text-gray-300 hover:text-blue-600'
-                }`}
-              >
-                <Settings className="w-4 h-4" />
-                <span className="hidden lg:inline">Settings</span>
-              </button>
-            )}
         </div>
 
         {/* User Profile Section */}
@@ -198,15 +186,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
                   <LayoutIcon className="w-6 h-6 text-blue-600" />
                   My Documents
               </button>
-              {user.role === UserRole.ADMIN && (
-                <button 
-                  onClick={() => handleNavigate('settings')}
-                  className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700 text-lg font-medium text-gray-800 dark:text-white active:bg-blue-50"
-                >
-                    <Settings className="w-6 h-6 text-blue-600" />
-                    Settings
-                </button>
-              )}
+              <button 
+                onClick={() => handleNavigate('settings')}
+                className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700 text-lg font-medium text-gray-800 dark:text-white active:bg-blue-50"
+              >
+                  <Settings className="w-6 h-6 text-blue-600" />
+                  Settings
+              </button>
            </nav>
         </div>
       )}

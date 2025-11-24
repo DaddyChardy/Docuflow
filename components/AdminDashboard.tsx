@@ -1,9 +1,19 @@
+
 import React, { useState } from 'react';
-import { Users, FileText, Folder, Activity, HelpCircle, Plus, Database, History, X, Settings, CheckCircle, ChevronRight, Search, Bell } from 'lucide-react';
+import { Users, FileText, Folder, Activity, HelpCircle, Plus, Database, History, X, Settings, CheckCircle, ChevronRight, Bell, Search, MoreVertical, Edit2, Trash2, Mail, Shield, User } from 'lucide-react';
 
 interface AdminDashboardProps {
   onNavigate: (page: string, params?: any) => void;
 }
+
+// Mock User Data for the Management Modal
+const MOCK_USERS = [
+  { id: 1, name: 'Jim Shendrick', email: 'admin@nemsu.edu.ph', role: 'Campus Admin', status: 'Active', avatarColor: 'bg-blue-600' },
+  { id: 2, name: 'Student Leader', email: 'student@nemsu.edu.ph', role: 'Student Leader', status: 'Active', avatarColor: 'bg-emerald-500' },
+  { id: 3, name: 'Sarah G. Adviser', email: 'sarah.adviser@nemsu.edu.ph', role: 'Org Adviser', status: 'Active', avatarColor: 'bg-purple-500' },
+  { id: 4, name: 'John Budget', email: 'budget.officer@nemsu.edu.ph', role: 'Budget Officer', status: 'Away', avatarColor: 'bg-amber-500' },
+  { id: 5, name: 'Maria Finance', email: 'accountant@nemsu.edu.ph', role: 'Accountant', status: 'Active', avatarColor: 'bg-rose-500' },
+];
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) => {
   // State for modals
@@ -11,8 +21,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const [isUpdateTemplateOpen, setIsUpdateTemplateOpen] = useState(false);
   const [isUpdateDatasetsOpen, setIsUpdateDatasetsOpen] = useState(false);
   const [isRecentActivityOpen, setIsRecentActivityOpen] = useState(false);
+  
+  // Search State for User Management
+  const [userSearch, setUserSearch] = useState('');
 
-  // Stats Data - Updated with Dark Mode classes
+  // Stats Data
   const stats = [
     { 
       label: 'Total Users', 
@@ -59,8 +72,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     { title: 'Manage Users', desc: 'Add, remove, or edit user roles', icon: Users, action: () => setIsManageUserOpen(true), color: 'blue' },
     { title: 'Update Templates', desc: 'Modify generation templates', icon: Folder, action: () => setIsUpdateTemplateOpen(true), color: 'indigo' },
     { title: 'Update Datasets', desc: 'Manage knowledge base', icon: Database, action: () => setIsUpdateDatasetsOpen(true), color: 'sky' },
-    { title: 'View Logs', desc: 'Audit system activity', icon: History, action: () => setIsRecentActivityOpen(true), color: 'blue' },
+    { title: 'Recent Activity', desc: 'View system logs', icon: History, action: () => setIsRecentActivityOpen(true), color: 'emerald' },
   ];
+
+  // Filter users based on search
+  const filteredUsers = MOCK_USERS.filter(u => 
+    u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
+    u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+    u.role.toLowerCase().includes(userSearch.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans transition-colors duration-200">
@@ -218,13 +238,129 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           </div>
         </div>
 
-        {/* Modals with Enhanced Animation */}
-        {(isManageUserOpen || isUpdateTemplateOpen || isUpdateDatasetsOpen || isRecentActivityOpen) && (
+        {/* --- USER MANAGEMENT MODAL --- */}
+        {isManageUserOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="bg-white dark:bg-gray-800 w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden animate-scale-in border border-gray-200 dark:border-gray-700 flex flex-col max-h-[85vh]">
+                
+                {/* Modal Header */}
+                <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800 sticky top-0 z-10">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                           <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" /> User Management
+                        </h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Manage system access and roles</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                         <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-md shadow-blue-200 dark:shadow-blue-900/30 transition flex items-center gap-2">
+                            <Plus className="w-4 h-4" /> Add User
+                         </button>
+                         <button 
+                            onClick={() => setIsManageUserOpen(false)}
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-400 hover:text-gray-600 transition"
+                         >
+                            <X className="w-6 h-6" />
+                         </button>
+                    </div>
+                </div>
+
+                {/* Toolbar */}
+                <div className="p-4 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700 flex gap-4">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                        <input 
+                            type="text" 
+                            placeholder="Search users by name, email, or role..." 
+                            value={userSearch}
+                            onChange={(e) => setUserSearch(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                        />
+                    </div>
+                    <select className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option>All Roles</option>
+                        <option>Student Leader</option>
+                        <option>Adviser</option>
+                        <option>Admin</option>
+                    </select>
+                </div>
+
+                {/* User List */}
+                <div className="flex-1 overflow-y-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase sticky top-0 backdrop-blur-sm z-0">
+                            <tr>
+                                <th className="px-6 py-4">User</th>
+                                <th className="px-6 py-4">Role</th>
+                                <th className="px-6 py-4">Status</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                            {filteredUsers.map((user) => (
+                                <tr key={user.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition group">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm ${user.avatarColor}`}>
+                                                {user.name.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-gray-900 dark:text-white">{user.name}</p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                                    <Mail className="w-3 h-3" /> {user.email}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${
+                                            user.role === 'Campus Admin' ? 'bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800' :
+                                            user.role === 'Student Leader' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800' :
+                                            'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+                                        }`}>
+                                            {user.role === 'Campus Admin' && <Shield className="w-3 h-3" />}
+                                            {user.role}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                                            user.status === 'Active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                        }`}>
+                                            <span className={`w-1.5 h-1.5 rounded-full ${user.status === 'Active' ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                                            {user.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition" title="Edit User">
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
+                                            <button className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition" title="Delete User">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {filteredUsers.length === 0 && (
+                        <div className="p-12 text-center text-gray-500 dark:text-gray-400">
+                            <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                            <p className="text-lg font-medium">No users found</p>
+                            <p className="text-sm">Try adjusting your search query</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+          </div>
+        )}
+
+        {/* Development Placeholder Modal (For other features) */}
+        {(isUpdateTemplateOpen || isUpdateDatasetsOpen || isRecentActivityOpen) && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
             <div className="bg-white dark:bg-gray-800 w-full max-w-lg rounded-2xl shadow-2xl p-6 relative animate-scale-in border border-gray-100 dark:border-gray-700">
                 <button 
                   onClick={() => {
-                      setIsManageUserOpen(false);
                       setIsUpdateTemplateOpen(false);
                       setIsUpdateDatasetsOpen(false);
                       setIsRecentActivityOpen(false);
@@ -244,7 +380,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                   </p>
                   <button 
                     onClick={() => {
-                      setIsManageUserOpen(false);
                       setIsUpdateTemplateOpen(false);
                       setIsUpdateDatasetsOpen(false);
                       setIsRecentActivityOpen(false);
