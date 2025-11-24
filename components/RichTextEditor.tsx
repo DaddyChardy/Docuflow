@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { 
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, 
@@ -287,8 +288,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   );
 
   const containerClasses = isMaximized 
-    ? "fixed inset-0 z-50 flex flex-col bg-gray-200 dark:bg-gray-900 h-screen w-screen animate-in fade-in duration-300" 
-    : "flex flex-col h-full bg-gray-100 dark:bg-gray-900 overflow-hidden rounded-xl border border-gray-300 dark:border-gray-700 shadow-inner relative transition-all duration-300";
+    ? "fixed inset-0 z-[100] flex flex-col bg-gray-100 dark:bg-gray-900 h-screen w-screen animate-zoom-in-center origin-center" 
+    : "flex flex-col h-full bg-gray-100 dark:bg-gray-900 overflow-hidden rounded-xl border border-gray-300 dark:border-gray-700 shadow-inner relative animate-restore-in";
 
   return (
     <div className={containerClasses}>
