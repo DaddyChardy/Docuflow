@@ -305,25 +305,31 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
         /* Page Break Guide Line */
+        /* Page Break Guide Line - Visual Gap */
         .page-guide {
           position: absolute;
           left: 0;
           right: 0;
-          height: 1px;
-          border-top: 1px dashed #ef4444;
+          height: 24px;
+          background: #e5e7eb; /* Gray gap */
+          border-top: 1px solid #d1d5db;
+          border-bottom: 1px solid #d1d5db;
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); /* Inner shadow for depth */
           pointer-events: none;
-          opacity: 0.5;
-          z-index: 10;
+          z-index: 5; /* Sit on top of text slightly to show it's a break */
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
         .page-guide::after {
-          content: 'Page Break';
-          position: absolute;
-          right: 10px;
-          top: -10px;
+          content: '— Page Break —';
           font-size: 10px;
-          color: #ef4444;
-          background: white;
-          padding: 0 4px;
+          color: #6b7280;
+          background: #e5e7eb;
+          padding: 0 8px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          font-weight: bold;
         }
 
         /* Prevent tables, images, headings from splitting across pages */
