@@ -207,20 +207,6 @@ const App: React.FC = () => {
       if (!session?.user) {
         setUser(null);
       } else {
-        // 1. Check Hardcoded SuperAdmin Check (Sync with Auth logic)
-        if (session.user.email === 'superadmin@nemsu.edu.ph') {
-          setUser({
-            id: 'superadmin-hardcoded-id',
-            email: session.user.email,
-            full_name: 'Super Admin',
-            user_type: UserRole.SUPER_ADMIN,
-            role_id: 'superadmin-role-id',
-            department: 'System Administration',
-            status: 'active'
-          });
-          return;
-        }
-
         // 2. Fetch Active/Pending Role
         const { data: roleData, error } = await supabase
           .from('user_roles')

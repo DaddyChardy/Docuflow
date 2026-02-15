@@ -37,27 +37,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, theme, toggleTheme }) => {
     e.preventDefault();
     setError('');
 
-    // 1. Hardcoded SuperAdmin Check
-    if (email === 'superadmin@nemsu.edu.ph' && password === 'superadmin123') {
-      const superAdminUser: User = {
-        id: 'superadmin-hardcoded-id',
-        email: email,
-        full_name: 'Super Admin',
-        user_type: UserRole.SUPER_ADMIN,
-        role_id: 'superadmin-role-id',
-        department: 'System Administration',
-        status: 'active',
-        // SuperAdmin permissions can be implicit or explicit
-        permissions: {
-          official_letter: 'edit',
-          activity_proposal: 'edit',
-          constitution: 'edit'
-        }
-      };
-      onLogin(superAdminUser);
-      return;
-    }
-
     try {
       // 2. Supabase Auth Login
       const { data: { user: authUser }, error: authError } = await supabase.auth.signInWithPassword({
