@@ -95,7 +95,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                     status: 'active',
                     specific_role: assignRole,
                     department: assignDept,
-                    permissions: assignRole.includes('Governor') ? {
+                    permissions: (assignRole.includes('Governor') || assignRole === 'University Staff') ? {
                         official_letter: 'edit',
                         activity_proposal: 'edit',
                         constitution: 'edit'
