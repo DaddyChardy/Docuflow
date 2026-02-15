@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Moon, Sun } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 
 interface AuthProps {
   onLogin: (user: User) => void;
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
 }
 
-export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
+export const Auth: React.FC<AuthProps> = ({ onLogin, theme, toggleTheme }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,74 +33,127 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    // Admin Login
-    if (email === 'admin@nemsu.edu.ph' && password === 'admin') {
-      const adminUser: User = {
-        email,
-        name: 'Jim Shendrick',
-        id: 'mock-admin-id-001',
-        role: UserRole.ADMIN,
-        organization: 'System Administration'
+    // 1. Hardcoded SuperAdmin Check
+    if (email === 'superadmin@nemsu.edu.ph' && password === 'superadmin123') {
+      const superAdminUser: User = {
+        id: 'superadmin-hardcoded-id',
+        email: email,
+        full_name: 'Super Admin',
+        user_type: UserRole.SUPER_ADMIN,
+        role_id: 'superadmin-role-id',
+        department: 'System Administration',
+        status: 'active',
+        // SuperAdmin permissions can be implicit or explicit
+        permissions: {
+          official_letter: 'edit',
+          activity_proposal: 'edit',
+          constitution: 'edit'
+        }
       };
-      onLogin(adminUser);
+      onLogin(superAdminUser);
       return;
     }
 
-    // Student Login
-    if (email === 'student@nemsu.edu.ph' && password === 'student') {
-      const studentUser: User = {
+    try {
+      // 2. Supabase Auth Login
+      const { data: { user: authUser }, error: authError } = await supabase.auth.signInWithPassword({
         email,
-        name: 'Student Leader',
-        role: UserRole.STUDENT_LEADER,
-        organization: 'Supreme Student Council'
-      };
-      onLogin(studentUser);
-      return;
-    }
+        password,
+      });
 
-    if (!email.endsWith('@nemsu.edu.ph')) {
-      setError('Please use your official @nemsu.edu.ph email address.');
-      return;
-    }
+      if (authError) throw authError;
 
-    // Mock Fallback for other valid emails if needed, but for this task strictly enforcing the above
-    setError('Invalid credentials. Please use the demo accounts provided.');
+      if (authUser) {
+        // 3. Fetch Active Role
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .eq('status', 'active')
+          .maybeSingle();
+
+        if (roleError && roleError.code !== 'PGRST116') { // PGRST116 is "Row not found" which is fine here
+          console.error('Error fetching role:', roleError);
+        }
+
+        // 4. Fetch Profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+
+        if (profileError && !profileData) {
+          // If profile doesn't exist yet (trigger failed?), we might need to create it or show error
+          // ideally trigger handles it.
+          console.error('Profile not found:', profileError);
+          throw new Error('User profile not found.');
+        }
+
+        const constructedUser: User = {
+          id: authUser.id,
+          email: authUser.email!,
+          full_name: profileData?.full_name || authUser.user_metadata?.full_name || 'User',
+          avatar_url: profileData?.avatar_url || authUser.user_metadata?.avatar_url,
+          // Role Data
+          role_id: roleData?.id,
+          user_type: roleData?.role as UserRole,
+          specific_role: roleData?.specific_role,
+          department: roleData?.department,
+          status: roleData?.status || 'pending',
+          permissions: roleData?.permissions
+        };
+
+        onLogin(constructedUser);
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err.message || 'Invalid login credentials.');
+    }
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-6">
+    <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center p-6 transition-colors duration-200">
+      <button
+        onClick={toggleTheme}
+        className="absolute top-6 right-6 p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+        title="Toggle Theme"
+      >
+        {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+      </button>
+
       <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 
         {/* Branding (First on Mobile, Last on Desktop) */}
         <div className="text-center lg:text-left flex flex-col items-center lg:items-center justify-center p-4 lg:order-last">
-          <h1 className="text-6xl md:text-7xl font-serif italic text-blue-900 mb-6 drop-shadow-sm">
+          <h1 className="text-6xl md:text-7xl font-serif italic text-blue-900 dark:text-blue-400 mb-6 drop-shadow-sm transition-colors">
             SmartDraft
           </h1>
-          <p className="text-lg md:text-xl text-gray-600 font-serif max-w-lg leading-relaxed text-center">
+          <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 font-serif max-w-lg leading-relaxed text-center transition-colors">
             AI-Powered Document Automation System — simplify your workflow, boost productivity, and automate your document generation efficiently.
           </p>
         </div>
 
         {/* Login Form (Second on Mobile, First on Desktop) */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 md:p-10 max-w-md w-full mx-auto">
-          <h2 className="text-3xl font-serif italic text-center text-blue-900 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-8 md:p-10 max-w-md w-full mx-auto transition-colors">
+          <h2 className="text-3xl font-serif italic text-center text-blue-900 dark:text-white mb-8 transition-colors">
             Welcome Back!
           </h2>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none transition bg-white"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none transition bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                   placeholder="name@nemsu.edu.ph"
                   required
                 />
@@ -106,21 +161,21 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none transition bg-white"
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none transition bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                   placeholder="Enter your password"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -128,11 +183,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             </div>
 
             <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center text-gray-600">
-                <input type="checkbox" className="mr-2 rounded border-gray-300 text-blue-900 focus:ring-blue-900" />
+              <label className="flex items-center text-gray-600 dark:text-gray-400">
+                <input type="checkbox" className="mr-2 rounded border-gray-300 dark:border-gray-600 text-blue-900 focus:ring-blue-900 bg-white dark:bg-gray-700" />
                 Remember me
               </label>
-              <button type="button" className="text-gray-500 hover:text-blue-900 hover:underline">
+              <button type="button" className="text-gray-500 dark:text-gray-400 hover:text-blue-900 dark:hover:text-blue-400 hover:underline">
                 Forgot password?
               </button>
             </div>
@@ -153,13 +208,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             <button
               type="button"
               onClick={handleGoogleLogin}
-              className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3.5 rounded-lg transition flex items-center justify-center gap-2 hover:bg-gray-50 hover:shadow-sm"
+              className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-white font-semibold py-3.5 rounded-lg transition flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-600 hover:shadow-sm"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
                   fill="currentColor"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  className="text-blue-600"
+                  className="text-blue-600 dark:text-blue-400"
                 />
                 <path
                   fill="currentColor"
@@ -168,7 +223,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 />
                 <path
                   fill="currentColor"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.26+-.19-.58z"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.26-.19-.58z"
                   className="text-yellow-500"
                 />
                 <path

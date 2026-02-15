@@ -10,7 +10,8 @@ import {
   Layout as LayoutIcon,
   Menu,
   X,
-  Settings
+  Settings,
+  Archive
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -43,7 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
     setIsMobileMenuOpen(false);
   };
 
-  const getHomeRoute = () => user.role === UserRole.ADMIN ? 'admin-dashboard' : 'dashboard';
+  const getHomeRoute = () => 'dashboard';
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors duration-200 font-sans">
@@ -74,8 +75,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
           <button
             onClick={() => handleNavigate(getHomeRoute())}
             className={`flex items-center gap-2 text-sm font-medium transition-colors ${(currentView === 'dashboard' || currentView === 'admin-dashboard')
-                ? 'text-blue-600 dark:text-blue-400'
-                : 'text-gray-600 dark:text-gray-300 hover:text-blue-600'
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-gray-600 dark:text-gray-300 hover:text-blue-600'
               }`}
           >
             <Home className="w-4 h-4" />
@@ -84,12 +85,22 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
           <button
             onClick={() => handleNavigate('documents')}
             className={`flex items-center gap-2 text-sm font-medium transition-colors ${currentView === 'documents'
-                ? 'text-blue-600 dark:text-blue-400'
-                : 'text-gray-600 dark:text-gray-300 hover:text-blue-600'
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-gray-600 dark:text-gray-300 hover:text-blue-600'
               }`}
           >
             <LayoutIcon className="w-4 h-4" />
-            <span className="hidden lg:inline">My Documents</span>
+            <span className="hidden lg:inline">Documents</span>
+          </button>
+          <button
+            onClick={() => handleNavigate('archives')}
+            className={`flex items-center gap-2 text-sm font-medium transition-colors ${currentView === 'archives'
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-gray-600 dark:text-gray-300 hover:text-blue-600'
+              }`}
+          >
+            <Archive className="w-4 h-4" />
+            <span className="hidden lg:inline">Archives</span>
           </button>
         </div>
 
@@ -102,7 +113,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
             className="flex items-center gap-2 md:gap-3 outline-none group"
           >
             <div className="hidden md:flex flex-col items-end mr-1">
-              <span className="text-sm font-semibold text-gray-800 dark:text-white group-hover:text-blue-600 transition max-w-[100px] truncate">{user.name}</span>
+              <span className="text-sm font-semibold text-gray-800 dark:text-white group-hover:text-blue-600 transition max-w-[100px] truncate">{user.full_name}</span>
             </div>
             <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
               <UserIcon className="w-4 h-4 md:w-5 md:h-5" />
@@ -118,17 +129,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
               <div className="flex flex-col items-center mb-6">
                 <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-50 dark:bg-blue-900/50 rounded-full flex items-center justify-center mb-3 relative">
                   <img
-                    src={user.profile_picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0D8ABC&color=fff&size=128`}
+                    src={user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=0D8ABC&color=fff&size=128`}
                     alt="Profile"
                     onError={(e) => {
                       e.currentTarget.onerror = null; // prevent loop
-                      e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0D8ABC&color=fff&size=128`;
+                      e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=0D8ABC&color=fff&size=128`;
                     }}
                     className="w-full h-full rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-md"
                   />
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-1.5 text-center">
-                  {user.name}
+                  {user.full_name}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center break-all">{user.email}</p>
               </div>
@@ -137,7 +148,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
 
               {/* Role Based Menu Items */}
               <div className="space-y-2">
-                {user.role === UserRole.ADMIN && (
+                {(user.user_type === UserRole.SUPER_ADMIN || (user.user_type === UserRole.ADMIN && user.specific_role !== 'University Staff')) && (
                   <button
                     onClick={() => handleNavigate('admin-dashboard')}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700 rounded-xl transition group"
@@ -186,7 +197,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
               className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700 text-lg font-medium text-gray-800 dark:text-white active:bg-blue-50"
             >
               <LayoutIcon className="w-6 h-6 text-blue-600" />
-              My Documents
+              Documents
+            </button>
+            <button
+              onClick={() => handleNavigate('archives')}
+              className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700 text-lg font-medium text-gray-800 dark:text-white active:bg-blue-50"
+            >
+              <Archive className="w-6 h-6 text-blue-600" />
+              Archives
             </button>
             <button
               onClick={() => handleNavigate('settings')}

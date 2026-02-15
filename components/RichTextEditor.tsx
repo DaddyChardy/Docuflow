@@ -11,6 +11,7 @@ interface RichTextEditorProps {
   onToggleVoice?: () => void;
   isVoiceActive?: boolean;
   onSave?: (content: string) => void; // Handler for persistence
+  readOnly?: boolean;
 }
 
 // A4 Dimensions in Pixels (approx at 96 DPI)
@@ -23,7 +24,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   title = "Document",
   onToggleVoice,
   isVoiceActive,
-  onSave
+  onSave,
+  readOnly = false
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const [isMaximized, setIsMaximized] = useState(false);
@@ -50,6 +52,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   }, [contentHeight]);
 
   const execCommand = (command: string, value: string | undefined = undefined) => {
+    if (readOnly) return;
     document.execCommand(command, false, value);
     editorRef.current?.focus();
     checkHeight();
@@ -62,7 +65,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   }
 
   const handleSaveClick = () => {
-    if (editorRef.current && onSave) {
+    if (editorRef.current && onSave && !readOnly) {
       onSave(editorRef.current.innerHTML);
     }
   };
@@ -228,7 +231,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         e.preventDefault();
         execCommand(cmd, arg);
       }}
-      className="p-1.5 md:p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition"
+      disabled={readOnly}
+      className={`p-1.5 md:p-2 rounded transition ${readOnly ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
       title={title}
     >
       <Icon className="w-4 h-4 md:w-5 md:h-5" />
@@ -353,45 +357,66 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       `}</style>
 
       {/* Toolbar */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 p-2 flex items-center gap-1 flex-wrap shadow-sm z-10 shrink-0 justify-start">
-        <ToolbarButton icon={Undo} cmd="undo" title="Undo" />
-        <ToolbarButton icon={Redo} cmd="redo" title="Redo" />
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2 hidden sm:block" />
-        <ToolbarButton icon={Bold} cmd="bold" title="Bold" />
-        <ToolbarButton icon={Italic} cmd="italic" title="Italic" />
-        <ToolbarButton icon={Underline} cmd="underline" title="Underline" />
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2 hidden sm:block" />
-        <ToolbarButton icon={AlignLeft} cmd="justifyLeft" title="Align Left" />
-        <ToolbarButton icon={AlignCenter} cmd="justifyCenter" title="Align Center" />
-        <ToolbarButton icon={AlignRight} cmd="justifyRight" title="Align Right" />
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2 hidden sm:block" />
-        <ToolbarButton icon={List} cmd="insertUnorderedList" title="Bullet List" />
-        <ToolbarButton icon={ListOrdered} cmd="insertOrderedList" title="Numbered List" />
-        <ToolbarButton icon={Scissors} cmd="insertHTML" arg='<div class="page-break"></div>' title="Insert Page Break" />
-        <div className="flex-1 min-w-[10px]" />
+      {!readOnly && (
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 p-2 flex items-center gap-1 flex-wrap shadow-sm z-10 shrink-0 justify-start">
+          <ToolbarButton icon={Undo} cmd="undo" title="Undo" />
+          <ToolbarButton icon={Redo} cmd="redo" title="Redo" />
+          <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2 hidden sm:block" />
+          <ToolbarButton icon={Bold} cmd="bold" title="Bold" />
+          <ToolbarButton icon={Italic} cmd="italic" title="Italic" />
+          <ToolbarButton icon={Underline} cmd="underline" title="Underline" />
+          <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2 hidden sm:block" />
+          <ToolbarButton icon={AlignLeft} cmd="justifyLeft" title="Align Left" />
+          <ToolbarButton icon={AlignCenter} cmd="justifyCenter" title="Align Center" />
+          <ToolbarButton icon={AlignRight} cmd="justifyRight" title="Align Right" />
+          <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2 hidden sm:block" />
+          <ToolbarButton icon={List} cmd="insertUnorderedList" title="Bullet List" />
+          <ToolbarButton icon={ListOrdered} cmd="insertOrderedList" title="Numbered List" />
+          <ToolbarButton icon={Scissors} cmd="insertHTML" arg='<div class="page-break"></div>' title="Insert Page Break" />
+          <div className="flex-1 min-w-[10px]" />
 
-        {/* Actions */}
-        <button onClick={handleSaveClick} className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition flex items-center gap-2 text-sm font-medium" title="Save to My Documents">
-          <Save className="w-4 h-4" /> <span className="hidden lg:inline">Save</span>
-        </button>
+          {/* Actions */}
+          <button onClick={handleSaveClick} className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition flex items-center gap-2 text-sm font-medium" title="Save to My Documents">
+            <Save className="w-4 h-4" /> <span className="hidden lg:inline">Save</span>
+          </button>
 
-        <button onClick={handleExportDOCX} className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition flex items-center gap-2 text-sm font-medium" title="Download as Word Doc">
-          <Download className="w-4 h-4" /> <span className="hidden lg:inline">.doc</span>
-        </button>
+          <button onClick={handleExportDOCX} className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition flex items-center gap-2 text-sm font-medium" title="Download as Word Doc">
+            <Download className="w-4 h-4" /> <span className="hidden lg:inline">.doc</span>
+          </button>
 
-        <button onClick={handlePrint} className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition flex items-center gap-2 text-sm font-medium" title="Print / Save as PDF">
-          <Printer className="w-4 h-4" /> <span className="hidden lg:inline">Print</span>
-        </button>
+          <button onClick={handlePrint} className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition flex items-center gap-2 text-sm font-medium" title="Print / Save as PDF">
+            <Printer className="w-4 h-4" /> <span className="hidden lg:inline">Print</span>
+          </button>
 
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2 hidden sm:block" />
+          <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2 hidden sm:block" />
 
-        <button
-          onClick={() => setIsMaximized(!isMaximized)}
-          className={`p-2 rounded transition flex items-center gap-2 text-sm font-medium ${isMaximized ? 'bg-blue-100 text-blue-700' : 'text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}
-        >
-          <Eye className="w-4 h-4" /> <span className="hidden lg:inline">View</span>
-        </button>
-      </div>
+          <button
+            onClick={() => setIsMaximized(!isMaximized)}
+            className={`p-2 rounded transition flex items-center gap-2 text-sm font-medium ${isMaximized ? 'bg-blue-100 text-blue-700' : 'text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}
+          >
+            <Eye className="w-4 h-4" /> <span className="hidden lg:inline">View</span>
+          </button>
+        </div>
+      )}
+
+      {/* View Only Toolbar (Simplified) */}
+      {readOnly && (
+        <div className="bg-gray-50 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 p-2 flex items-center gap-1 flex-wrap shadow-sm z-10 shrink-0 justify-end">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mr-4">View Only Mode</span>
+          <button onClick={handleExportDOCX} className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition flex items-center gap-2 text-sm font-medium" title="Download as Word Doc">
+            <Download className="w-4 h-4" /> <span className="hidden lg:inline">.doc</span>
+          </button>
+          <button onClick={handlePrint} className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition flex items-center gap-2 text-sm font-medium" title="Print / Save as PDF">
+            <Printer className="w-4 h-4" /> <span className="hidden lg:inline">Print</span>
+          </button>
+          <button
+            onClick={() => setIsMaximized(!isMaximized)}
+            className={`p-2 rounded transition flex items-center gap-2 text-sm font-medium ${isMaximized ? 'bg-blue-100 text-blue-700' : 'text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}
+          >
+            <Eye className="w-4 h-4" /> <span className="hidden lg:inline">View</span>
+          </button>
+        </div>
+      )}
 
       {/* Editor Workspace - Allows horizontal scroll for the A4 paper */}
       <div className="flex-1 overflow-auto bg-gray-200 dark:bg-gray-900/50 flex flex-col items-center p-4 md:p-8 custom-scrollbar">
@@ -413,10 +438,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
           <div
             ref={editorRef}
-            contentEditable
+            contentEditable={!readOnly}
             onInput={checkHeight}
             onKeyUp={checkHeight}
-            className="outline-none document-editor flex-1"
+            className={`outline-none document-editor flex-1 ${readOnly ? 'cursor-default' : 'cursor-text'}`}
             style={{
               width: '100%',
               paddingLeft: PAGE_MARGIN,
@@ -441,7 +466,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       </div>
 
       {/* Voice Agent Button */}
-      {isMaximized && onToggleVoice && (
+      {isMaximized && onToggleVoice && !readOnly && (
         <button
           onClick={onToggleVoice}
           className={`fixed bottom-8 right-8 z-[60] p-4 rounded-full shadow-2xl transition-all hover:scale-110 flex items-center justify-center ${isVoiceActive ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}

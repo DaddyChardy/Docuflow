@@ -1,18 +1,49 @@
 
 import React, { useEffect, useState } from 'react';
-import { FileText, MoreVertical, Download, Clock, Trash2, Eye, History, X, ChevronRight } from 'lucide-react';
+import { FileText, MoreVertical, Download, Clock, Trash2, Eye, History, X, ChevronRight, Share2, Users } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
-import { GeneratedDocument, DocumentVersion, User } from '../types';
+import { GeneratedDocument, DocumentVersion, User, DocumentType } from '../types';
+import { ConfirmModal } from './ConfirmModal';
 
 interface DocumentListProps {
     user: User;
     onNavigate: (view: string, params?: any) => void;
+    initialTab?: 'my' | 'shared';
+    initialType?: DocumentType | 'ALL';
 }
 
-export const DocumentList: React.FC<DocumentListProps> = ({ user, onNavigate }) => {
+export const DocumentList: React.FC<DocumentListProps> = ({ user, onNavigate, initialTab = 'my', initialType = 'ALL' }) => {
     const [docs, setDocs] = useState<GeneratedDocument[]>([]);
     const [historyDoc, setHistoryDoc] = useState<GeneratedDocument | null>(null);
     const [previewVersion, setPreviewVersion] = useState<DocumentVersion | null>(null);
+
+    const [activeTab, setActiveTab] = useState<'my' | 'shared'>(initialTab);
+    const [filterType, setFilterType] = useState<DocumentType | 'ALL'>(initialType);
+
+    // Confirmation State
+    const [confirmState, setConfirmState] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        confirmLabel: string;
+        variant: 'danger' | 'info';
+        onConfirm: () => void;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        confirmLabel: 'Confirm',
+        variant: 'info',
+        onConfirm: () => { }
+    });
+
+    const closeConfirm = () => setConfirmState(prev => ({ ...prev, isOpen: false }));
+
+    // Update state if props change (e.g. navigation from dashboard)
+    useEffect(() => {
+        if (initialTab) setActiveTab(initialTab);
+        if (initialType) setFilterType(initialType);
+    }, [initialTab, initialType]);
 
     useEffect(() => {
         const loadDocs = async () => {
@@ -22,17 +53,12 @@ export const DocumentList: React.FC<DocumentListProps> = ({ user, onNavigate }) 
                 const { data, error } = await supabase
                     .from('documents')
                     .select('*')
-                    .eq('user_id', user.id)
+                    // Fetch own docs OR docs shared with department
+                    .or(`user_id.eq.${user.id},and(visibility.eq.department,department.eq.${user.department})`)
+                    .neq('status', 'Archived') // Exclude archived documents
                     .order('updated_at', { ascending: false });
 
                 if (error) throw error;
-
-                // Map database fields to frontend types if necessary (though they should match mostly)
-                // The Supabase query returns columns as snake_case if we didn't alias them?
-                // Wait, my type definition has camelCase (createdAt, updatedAt).
-                // But my table has snake_case (created_at, updated_at).
-                // I need to map them or update the type. 
-                // Let's assume the GeneratedDocument type expects camelCase.
 
                 const mappedDocs: GeneratedDocument[] = (data || []).map((d: any) => ({
                     id: d.id,
@@ -42,7 +68,11 @@ export const DocumentList: React.FC<DocumentListProps> = ({ user, onNavigate }) 
                     status: d.status,
                     createdAt: new Date(d.created_at),
                     updatedAt: new Date(d.updated_at),
-                    versions: d.versions || [] // Handle if versions are stored in JSONB or separate table
+
+                    versions: d.versions || [],
+                    visibility: d.visibility,
+                    department: d.department,
+                    user_id: d.user_id
                 }));
 
                 setDocs(mappedDocs);
@@ -54,41 +84,179 @@ export const DocumentList: React.FC<DocumentListProps> = ({ user, onNavigate }) 
     }, [user, historyDoc]); // Reload when user changes or closing history modal
 
     const handleDelete = async (id: string) => {
-        if (confirm("Are you sure you want to delete this document?")) {
-            try {
-                const { error } = await supabase
-                    .from('documents')
-                    .delete()
-                    .eq('id', id);
+        setConfirmState({
+            isOpen: true,
+            title: 'Delete Document',
+            message: 'Are you sure you want to delete this document? This action cannot be undone.',
+            confirmLabel: 'Delete',
+            variant: 'danger',
+            onConfirm: async () => {
+                try {
+                    const { error } = await supabase
+                        .from('documents')
+                        .delete()
+                        .eq('id', id);
 
-                if (error) throw error;
+                    if (error) throw error;
 
-                const updated = docs.filter(d => d.id !== id);
-                setDocs(updated);
-            } catch (e) {
-                console.error("Failed to delete document", e);
-                alert("Failed to delete document.");
+                    const updated = docs.filter(d => d.id !== id);
+                    setDocs(updated);
+                } catch (e) {
+                    console.error("Failed to delete document", e);
+                    alert("Failed to delete document.");
+                }
             }
+        });
+    };
+
+    const handleToggleShare = async (doc: GeneratedDocument) => {
+        const newVisibility = doc.visibility === 'department' ? 'private' : 'department';
+        try {
+            const { error } = await supabase
+                .from('documents')
+                .update({
+                    visibility: newVisibility,
+                    department: user.department // Ensure department is set when sharing
+                })
+                .eq('id', doc.id);
+
+            if (error) throw error;
+
+            setDocs(docs.map(d => d.id === doc.id ? { ...d, visibility: newVisibility, department: user.department } : d));
+        } catch (e) {
+            console.error("Failed to update visibility", e);
+            alert("Failed to update share settings.");
         }
     };
 
+    const handleRollback = async (version: DocumentVersion) => {
+        if (!historyDoc || !user.id) return;
+
+        setConfirmState({
+            isOpen: true,
+            title: 'Restore Version',
+            message: `Are you sure you want to rollback to Version ${version.versionNumber}? This will overwrite the current content with this version's content.`,
+            confirmLabel: 'Restore',
+            variant: 'info',
+            onConfirm: async () => {
+                try {
+                    const currentVersions = historyDoc.versions || [];
+                    const newVersion: DocumentVersion = {
+                        id: Date.now().toString(),
+                        content: version.content,
+                        savedAt: new Date(),
+                        versionNumber: currentVersions.length + 1,
+                        modifiedBy: {
+                            id: user.id,
+                            name: user.full_name
+                        }
+                    };
+
+                    const updatedVersions = [...currentVersions, newVersion];
+
+                    const { error } = await supabase
+                        .from('documents')
+                        .update({
+                            content: version.content,
+                            versions: updatedVersions,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', historyDoc.id);
+
+                    if (error) throw error;
+
+                    const updatedDoc = {
+                        ...historyDoc,
+                        content: version.content,
+                        versions: updatedVersions,
+                        updatedAt: new Date()
+                    };
+
+                    setHistoryDoc(updatedDoc);
+                    setDocs(docs.map(d => d.id === historyDoc.id ? updatedDoc : d));
+                    setPreviewVersion(newVersion);
+                } catch (e) {
+                    console.error("Failed to restore document", e);
+                    alert("Failed to restore document.");
+                }
+            }
+        });
+    };
+
+    // Filter Logic
+    const filteredDocs = docs.filter(doc => {
+        // Tab Filter
+        if (activeTab === 'my' && doc.user_id !== user.id) return false;
+        if (activeTab === 'shared' && doc.user_id === user.id) return false;
+
+        // Type Filter
+        if (filterType !== 'ALL' && doc.type !== filterType) return false;
+
+        return true;
+    });
+
     return (
         <div className="p-4 md:p-6 max-w-6xl mx-auto">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-white mb-6">My Documents</h1>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-white">
+                    {activeTab === 'my' ? 'My Documents' : `Shared with ${user.department}`}
+                </h1>
+
+                <div className="flex gap-4 w-full md:w-auto">
+                    {/* Type Filter */}
+                    <select
+                        value={filterType}
+                        onChange={(e) => setFilterType(e.target.value as DocumentType | 'ALL')}
+                        className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-sm"
+                    >
+                        <option value="ALL">All Types</option>
+                        {Object.values(DocumentType).map(t => (
+                            <option key={t} value={t}>{t}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex items-center gap-6 border-b border-gray-200 dark:border-gray-700 mb-6">
+                <button
+                    onClick={() => setActiveTab('my')}
+                    className={`pb-3 text-sm font-medium transition relative ${activeTab === 'my'
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                >
+                    My Documents
+                    {activeTab === 'my' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />}
+                </button>
+                <button
+                    onClick={() => setActiveTab('shared')}
+                    className={`pb-3 text-sm font-medium transition relative ${activeTab === 'shared'
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                >
+                    Shared with Me
+                    {activeTab === 'shared' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />}
+                </button>
+            </div>
+
 
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                {docs.length === 0 ? (
+                {filteredDocs.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">
                         <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                        <p>No saved documents found.</p>
-                        <p className="text-sm">Generate a new document to see it here.</p>
+                        <p>No documents found.</p>
+                        {activeTab === 'my' && <p className="text-sm">Generate a new document to see it here.</p>}
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 <tr>
-                                    <th className="px-6 py-4 whitespace-nowrap">Document Name</th>
+                                    <th className="px-6 py-4 whitespace-nowrap">
+                                        Document Name
+                                    </th>
                                     <th className="px-6 py-4 whitespace-nowrap">Type</th>
                                     <th className="px-6 py-4 whitespace-nowrap">Last Modified</th>
                                     <th className="px-6 py-4 whitespace-nowrap">Status</th>
@@ -96,7 +264,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ user, onNavigate }) 
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {docs.map((doc) => (
+                                {filteredDocs.map((doc) => (
                                     <tr
                                         key={doc.id}
                                         onClick={() => onNavigate('generate', { type: doc.type, doc: doc })}
@@ -111,6 +279,9 @@ export const DocumentList: React.FC<DocumentListProps> = ({ user, onNavigate }) 
                                                     <div className="text-sm font-medium text-gray-900 dark:text-white max-w-[200px] truncate" title={doc.title}>
                                                         {doc.title}
                                                     </div>
+                                                    {doc.user_id !== user.id && (
+                                                        <span className="text-xs text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded">Shared</span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>
@@ -132,20 +303,40 @@ export const DocumentList: React.FC<DocumentListProps> = ({ user, onNavigate }) 
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                             <div className="flex gap-2">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); setHistoryDoc(doc); }}
-                                                    className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition"
-                                                    title="View Version History"
-                                                >
-                                                    <History className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }}
-                                                    className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                                {doc.user_id === user.id && (
+                                                    <>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleToggleShare(doc); }}
+                                                            className={`transition ${doc.visibility === 'department' ? 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300' : 'text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'}`}
+                                                            title={doc.visibility === 'department' ? "Unshare" : "Share with Department"}
+                                                        >
+                                                            {doc.visibility === 'department' ? <Users className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setHistoryDoc(doc); }}
+                                                            className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition"
+                                                            title="View Version History"
+                                                        >
+                                                            <History className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }}
+                                                            className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition"
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </>
+                                                )}
+                                                {doc.user_id !== user.id && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setHistoryDoc(doc); }}
+                                                        className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition"
+                                                        title="View Version History"
+                                                    >
+                                                        <History className="w-4 h-4" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -187,11 +378,18 @@ export const DocumentList: React.FC<DocumentListProps> = ({ user, onNavigate }) 
                                                 }`}
                                         >
                                             <div className="flex justify-between items-center">
-                                                <span className="font-bold text-sm text-gray-800 dark:text-gray-200">Version {version.versionNumber}</span>
+                                                <span className="font-bold text-sm text-gray-800 dark:text-gray-200">{version.versionNumber === 1 ? "Original Version" : `Version ${version.versionNumber}`}</span>
                                                 {previewVersion?.id === version.id && <ChevronRight className="w-4 h-4 text-blue-500" />}
                                             </div>
-                                            <span className="text-xs text-gray-500 flex items-center gap-1">
-                                                <Clock className="w-3 h-3" /> {new Date(version.savedAt).toLocaleString()}
+                                            <span className="text-xs text-gray-500 flex flex-col gap-0.5">
+                                                <span className="flex items-center gap-1">
+                                                    <Clock className="w-3 h-3" /> {new Date(version.savedAt).toLocaleString()}
+                                                </span>
+                                                {version.modifiedBy && (
+                                                    <span className="text-gray-400 italic">
+                                                        Modified by: {version.modifiedBy.name}
+                                                    </span>
+                                                )}
                                             </span>
                                         </button>
                                     )) || <p className="text-sm text-gray-500 italic">No versions saved.</p>}
@@ -203,8 +401,18 @@ export const DocumentList: React.FC<DocumentListProps> = ({ user, onNavigate }) 
                                 {previewVersion ? (
                                     <div className="max-w-[210mm] mx-auto bg-white text-black shadow-lg p-[20mm] min-h-full">
                                         <div className="mb-4 pb-2 border-b border-gray-200 text-xs text-gray-400 uppercase tracking-widest text-center">
-                                            Previewing Version {previewVersion.versionNumber} • {new Date(previewVersion.savedAt).toLocaleString()}
+                                            Previewing {previewVersion.versionNumber === 1 ? "Original Version" : `Version ${previewVersion.versionNumber}`} • {new Date(previewVersion.savedAt).toLocaleString()}
                                         </div>
+                                        {user.id === historyDoc.user_id && (
+                                            <div className="mb-4 text-center">
+                                                <button
+                                                    onClick={() => handleRollback(previewVersion)}
+                                                    className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm font-medium transition"
+                                                >
+                                                    Restore this Version
+                                                </button>
+                                            </div>
+                                        )}
                                         <div
                                             className="document-content text-[12pt] font-serif"
                                             dangerouslySetInnerHTML={{ __html: previewVersion.content }}
@@ -221,6 +429,16 @@ export const DocumentList: React.FC<DocumentListProps> = ({ user, onNavigate }) 
                     </div>
                 </div>
             )}
+            {/* Active Confirmation Modal */}
+            <ConfirmModal
+                isOpen={confirmState.isOpen}
+                onClose={closeConfirm}
+                onConfirm={confirmState.onConfirm}
+                title={confirmState.title}
+                message={confirmState.message}
+                confirmLabel={confirmState.confirmLabel}
+                variant={confirmState.variant}
+            />
         </div>
     );
 };

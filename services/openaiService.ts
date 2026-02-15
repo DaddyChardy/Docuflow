@@ -115,7 +115,8 @@ export const generateDocument = async (
     });
 
     // Fetch Knowledge Base
-    const { data: datasetData } = await supabase.from('dataset_sections').select('content');
+    // UPDATED: Fetch from 'department_templates' as 'dataset_sections' is deprecated.
+    const { data: datasetData } = await supabase.from('department_templates').select('content');
     const referenceMaterial = datasetData?.map(d => d.content).join('\n\n') || "";
 
     const systemPrompt = `You are an expert academic administrator. Output HTML only. Ensure tables have visible borders (1px solid black) where appropriate.
@@ -226,7 +227,7 @@ export class LiveSession {
         // Fetch Knowledge Base for Voice Context
         let referenceMaterial = "";
         try {
-            const { data: datasetData } = await supabase.from('dataset_sections').select('content');
+            const { data: datasetData } = await supabase.from('department_templates').select('content');
             referenceMaterial = datasetData?.map(d => d.content).join('\n\n') || "";
         } catch (err) {
             console.error("Failed to load reference material for voice session", err);

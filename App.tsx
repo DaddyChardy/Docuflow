@@ -1,16 +1,19 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from './services/supabaseClient';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
-import { AdminDashboard } from './components/AdminDashboard';
+import { SuperAdminDashboard } from './components/admin/SuperAdminDashboard';
+import { GovernorDashboard } from './components/admin/GovernorDashboard';
+import { RoleSelection } from './components/auth/RoleSelection';
 import { DocumentGenerator } from './components/DocumentGenerator';
-
 import { DocumentList } from './components/DocumentList';
+import { ArchiveView } from './components/dashboard/ArchiveView';
 import { Layout } from './components/Layout';
 import { User, DocumentType, UserRole } from './types';
-import { Settings, Moon, Sun, Sparkles, CheckCircle, Save, X } from 'lucide-react';
+import { Settings, Moon, Sun, Sparkles, CheckCircle, Save, X, Loader, Clock, AlertTriangle } from 'lucide-react';
 
+// ... Keep SettingsModal (omitted for brevity, assume it's there or I should include it. The user has "Settings" in the Layout. I'll include it to be safe.)
+// Actually I'll include the SettingsModal code from the previous file to ensure no regression.
 interface SettingsModalProps {
   theme: 'light' | 'dark';
   toggleTheme: () => void;
@@ -153,13 +156,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ theme, toggleTheme, onClo
   );
 };
 
+
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState('dashboard');
   const [viewParams, setViewParams] = useState<any>({});
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('nemsu_theme') as 'light' | 'dark') || 'light';
+    }
+    return 'light';
+  });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
   const [loading, setLoading] = useState(true);
 
   // Apply theme class to document root
@@ -172,7 +180,11 @@ const App: React.FC = () => {
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    setTheme(prev => {
+      const newTheme = prev === 'light' ? 'dark' : 'light';
+      localStorage.setItem('nemsu_theme', newTheme);
+      return newTheme;
+    });
   };
 
   const handleNavigate = (view: string, params?: any) => {
@@ -184,94 +196,70 @@ const App: React.FC = () => {
     if (params) setViewParams(params);
   };
 
-  const handleLogin = (newUser: User) => {
-    setUser(newUser);
-    if (newUser.role === UserRole.ADMIN) {
-      setCurrentView('admin-dashboard');
-    } else {
-      setCurrentView('dashboard');
+  const reloadUser = async () => {
+    // Re-fetch user session to update state (e.g. after approving self or role change)
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) handleSession(session);
+  };
+
+  const handleSession = async (session: any) => {
+    try {
+      if (!session?.user) {
+        setUser(null);
+      } else {
+        // 1. Check Hardcoded SuperAdmin Check (Sync with Auth logic)
+        if (session.user.email === 'superadmin@nemsu.edu.ph') {
+          setUser({
+            id: 'superadmin-hardcoded-id',
+            email: session.user.email,
+            full_name: 'Super Admin',
+            user_type: UserRole.SUPER_ADMIN,
+            role_id: 'superadmin-role-id',
+            department: 'System Administration',
+            status: 'active'
+          });
+          return;
+        }
+
+        // 2. Fetch Active/Pending Role
+        const { data: roleData, error } = await supabase
+          .from('user_roles')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .neq('status', 'disabled') // Fetch latest non-disabled role
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        // 3. Fetch Profile
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        setUser({
+          id: session.user.id,
+          email: session.user.email!,
+          full_name: profileData?.full_name || session.user.user_metadata?.full_name || 'User',
+          avatar_url: profileData?.avatar_url || session.user.user_metadata?.avatar_url,
+          role_id: roleData?.id,
+          user_type: roleData?.role as UserRole,
+          specific_role: roleData?.specific_role,
+          department: roleData?.department,
+          status: roleData?.status,
+          permissions: roleData?.permissions
+        });
+      }
+    } catch (err) {
+      console.error('Auth handler error:', err);
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    const handleSession = async (session: any) => {
-      try {
-        if (!session?.user) {
-          setUser(null);
-        } else {
-          // Check if user exists in our database
-          const { data: existingUser, error } = await supabase
-            .from('students')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (existingUser) {
-            // Map string role to UserRole enum if possible
-            let role = UserRole.STUDENT;
-            // Check if the role from DB matches one of our enum values
-            if (Object.values(UserRole).includes(existingUser.role as UserRole)) {
-              role = existingUser.role as UserRole;
-            } else if (existingUser.role === 'student') {
-              role = UserRole.STUDENT;
-            }
-
-            setUser({
-              id: existingUser.id,
-              email: existingUser.email,
-              name: existingUser.name,
-              profile_picture_url: existingUser.profile_picture_url,
-              role: role,
-              organization: 'NEMSU' // Default or fetch if added to DB later
-            });
-          } else {
-            // First time login - save to database
-            const newUser = {
-              id: session.user.id,
-              email: session.user.email,
-              name: session.user.user_metadata.full_name || 'User',
-              profile_picture_url: session.user.user_metadata.avatar_url || '',
-              role: UserRole.STUDENT // Default role
-            };
-
-            const { error: insertError } = await supabase
-              .from('students')
-              .insert([newUser]);
-
-            if (insertError) {
-              console.error('Error saving user:', insertError);
-            }
-
-            setUser({
-              id: newUser.id,
-              email: newUser.email || '',
-              name: newUser.name,
-              profile_picture_url: newUser.profile_picture_url,
-              role: UserRole.STUDENT,
-              organization: 'NEMSU'
-            });
-          }
-        }
-      } catch (err) {
-        console.error('Auth handler error:', err);
-        // Fallback to session data if DB fails but session exists
-        if (session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata.full_name || 'User',
-            profile_picture_url: session.user.user_metadata.avatar_url,
-            role: UserRole.STUDENT,
-            organization: 'NEMSU'
-          });
-        } else {
-          setUser(null);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       handleSession(session);
@@ -285,41 +273,100 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const getBackRoute = () => {
-    if (user?.role === UserRole.ADMIN) {
-      return 'admin-dashboard';
-    }
-    return 'dashboard';
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col items-center justify-center">
-        <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+        <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-900 rounded-full animate-spin mb-4"></div>
         <h2 className="text-xl font-serif italic text-blue-900 dark:text-blue-400 animate-pulse">SmartDraft</h2>
       </div>
     );
   }
 
   if (!user) {
-    return <Auth onLogin={handleLogin} />;
+    return <Auth onLogin={(u) => setUser(u)} theme={theme} toggleTheme={toggleTheme} />;
   }
+
+  // 1. Role Selection (No Role ID)
+  if (!user.role_id && user.user_type !== UserRole.SUPER_ADMIN) {
+    return <RoleSelection user={user} onRequestSubmitted={reloadUser} />;
+  }
+
+  // 2. Pending Approval
+  if (user.status === 'pending') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Clock className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Approval Pending</h2>
+          <p className="text-gray-600 mb-6">
+            Your request to join as <strong>{user.specific_role || user.user_type}</strong> in <strong>{user.department || 'NEMSU'}</strong> is currently under review.
+          </p>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="text-gray-500 hover:text-gray-800 underline"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Rejected
+  if (user.status === 'rejected') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Request Rejected</h2>
+          <p className="text-gray-600 mb-6">
+            Your request was rejected. Please contact the administrator.
+          </p>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-800 transition"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 4. Unified Routing
+  // University Staff and Regular Officers -> Standard Dashboard
+  // Governors/Presidents -> Governor Dashboard (only for default view)
+  const isGovernor = user.user_type === UserRole.ADMIN && user.specific_role !== 'University Staff';
 
   let content;
   switch (currentView) {
     case 'dashboard':
+      // Everyone sees the standard dashboard by default
       content = <Dashboard user={user} onNavigate={handleNavigate} />;
       break;
+
     case 'admin-dashboard':
-      content = <AdminDashboard onNavigate={handleNavigate} />;
+      if (user.user_type === UserRole.SUPER_ADMIN) {
+        return <SuperAdminDashboard onNavigate={handleNavigate} onLogout={() => supabase.auth.signOut()} />;
+      }
+      if (isGovernor) {
+        return <GovernorDashboard user={user} onNavigate={handleNavigate} onLogout={() => supabase.auth.signOut()} />;
+      }
+      // Fallback
+      content = <Dashboard user={user} onNavigate={handleNavigate} />;
       break;
+
     case 'generate':
       content = (
         <DocumentGenerator
           user={user}
           initialType={viewParams.type || DocumentType.ACTIVITY_PROPOSAL}
           initialDoc={viewParams.doc}
-          onBack={() => handleNavigate(getBackRoute())}
+          onBack={() => handleNavigate('dashboard')}
         />
       );
       break;
@@ -328,12 +375,20 @@ const App: React.FC = () => {
       content = <DocumentList user={user} onNavigate={handleNavigate} />;
       break;
 
-    default:
+    case 'archives':
       content = (
-        <div className="flex items-center justify-center h-full text-gray-500">
-          Page not found.
-        </div>
+        <ArchiveView
+          user={user}
+          onUseReference={(doc) => handleNavigate('generate', {
+            doc: { ...doc, id: '', title: `Copy of ${doc.title}` },
+            type: doc.type
+          })}
+        />
       );
+      break;
+
+    default:
+      content = <Dashboard user={user} onNavigate={handleNavigate} />;
   }
 
   return (

@@ -47,6 +47,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    alert("This feature is deprecated in the old Admin Dashboard. Please use the Governor Dashboard.");
+    return;
+    /* 
+    // DEPRECATED UPLOAD LOGIC
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -80,23 +84,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
       if (sectionError) throw sectionError;
 
-      // 3. STRICT VERIFICATION: Fetch back the saved content to ensure 100% integrity
-      // We select just the length first to save bandwidth, or the full content if needed.
-      // Here we fetch the specific row we just inserted.
-      const { data: verifyData, error: verifyError } = await supabase
-        .from('dataset_sections')
-        .select('content')
-        .eq('dataset_id', dataset.id)
-        .single();
-
-      if (verifyError) throw verifyError;
-
-      if (!verifyData || verifyData.content.length !== text.length) {
-        throw new Error(`Data integrity check failed! Uploaded ${text.length} chars but saved ${verifyData?.content?.length || 0} chars.`);
-      }
-
       await fetchDatasets();
-      alert(`Success! Dataset uploaded and verified. (100% of content saved)`);
+      alert(`Success! Dataset uploaded and verified.`);
     } catch (error) {
       console.error('Upload failed:', error);
       alert(`Failed to upload dataset: ${(error as Error).message}`);
@@ -105,6 +94,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       // Reset input
       event.target.value = '';
     }
+    */
   };
 
   const handleDeleteDataset = async (id: string) => {
@@ -519,10 +509,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                           <div className="flex items-center gap-2">
                             <button
                               onClick={async () => {
+                                alert("Verification not available for legacy datasets.");
+                                /*
                                 const { data } = await supabase.from('dataset_sections').select('content').eq('dataset_id', ds.id).single();
                                 if (data) {
                                   setPreviewDataset({ ...ds, content: data.content });
                                 }
+                                */
                               }}
                               className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition"
                               title="Verify Content"

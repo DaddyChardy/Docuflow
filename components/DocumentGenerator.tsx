@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { DocumentType, GeneratedDocument, DocumentVersion, User } from '../types';
+import { DocumentType, GeneratedDocument, DocumentVersion, User, DocumentTypePermissionKey } from '../types';
+import { ConfirmModal } from './ConfirmModal';
 import { generateDocument, LiveSession } from '../services/openaiService';
 import { supabase } from '../services/supabaseClient';
-import { Bot, ArrowLeft, FormInput, Mic, PhoneOff, GripVertical } from 'lucide-react';
+import { Bot, ArrowLeft, FormInput, Mic, PhoneOff, GripVertical, Eye } from 'lucide-react';
 import { RichTextEditor } from './RichTextEditor';
 import * as THREE from 'three';
 // @ts-ignore
@@ -222,15 +223,66 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(initialDoc ? initialDoc.content : '');
   const [inputMode, setInputMode] = useState<'form' | 'chat'>('form');
+  const [visibility, setVisibility] = useState<'private' | 'department'>(initialDoc?.visibility || 'private');
 
   // Sidebar Resize State
-  const [sidebarWidth, setSidebarWidth] = useState(450);
+  const [sidebarWidth, setSidebarWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const checkDesktop = () => setIsDesktop(window.innerWidth >= 1024);
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
+
+  // Modal State
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: 'danger' | 'info' | 'warning' | 'success';
+    showCancel: boolean;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+    showCancel: false,
+    onConfirm: () => setModalState(prev => ({ ...prev, isOpen: false }))
+  });
+
+  const showAlert = (title: string, message: string, variant: 'danger' | 'info' | 'warning' | 'success' = 'info') => {
+    setModalState({
+      isOpen: true,
+      title,
+      message,
+      variant,
+      showCancel: false, // Alerts don't need cancel
+      onConfirm: () => setModalState(prev => ({ ...prev, isOpen: false }))
+    });
+  };
+
   // Document Tracking for Versioning
   const [currentDocId, setCurrentDocId] = useState<string | null>(initialDoc ? initialDoc.id : null);
+
+  // Permissions Check
+  const isOwner = initialDoc?.user_id === user.id;
+  const isSharedWithDept = initialDoc?.visibility === 'department' && initialDoc?.department === user.department;
+
+  // Check if user has specific permission for this document type
+  // If user is Admin/SuperAdmin, they might have global edit access (optional, but good practice)
+  const hasTypePermission = user.user_type === 'admin' || user.user_type === 'super_admin' ||
+    (user.permissions && user.permissions[DocumentTypePermissionKey[docType]] === 'edit');
+
+  // Can Edit if:
+  // 1. New Document (no initialDoc)
+  // 2. Owner
+  // 3. Shared with Dept AND User has 'edit' permission for this specific DocType
+  const canEdit = !initialDoc || isOwner || (isSharedWithDept && hasTypePermission);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -497,30 +549,89 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
       let title = "Untitled Document";
       if (formData.title) title = formData.title;
       else if (formData.subject) title = formData.subject;
-      else if (formData.orgName) title = `${formData.orgName} Resolution`;
       else if (docType) title = `${docType} - ${new Date().toLocaleDateString()}`;
 
-      // Upsert to Supabase
-      const docData = {
-        user_id: user.id,
+      // Enforce Permission Check
+      // This check is now redundant due to the `canEdit` variable, but kept for safety
+      // if (initialDoc && !isOwner && !isSharedWithDept) {
+      //   showAlert("Permission Denied", "You do not have permission to edit this document.", 'danger');
+      //   return;
+      // }
+
+      // Allow edit if Owner OR (Shared AND Same Department)
+      // New documents (no initialDoc) are always allowed (owner will be creator)
+      // Allow edit if Owner OR (Shared AND Same Department)
+      // New documents (no initialDoc) are always allowed (owner will be creator)
+      if (initialDoc && !isOwner && !isSharedWithDept) {
+        // Double check permission on save just in case
+        const hasTypePermission = user.user_type === 'admin' || user.user_type === 'super_admin' ||
+          (user.permissions && user.permissions[DocumentTypePermissionKey[docType]] === 'edit');
+
+        if (!hasTypePermission) {
+          showAlert("Permission Denied", "You do not have permission to edit this document type.", 'danger');
+          return;
+        }
+      }
+
+      // Prepare Versions
+
+      // Prepare Versions
+      // Prepare Versions
+      let currentVersions = initialDoc?.versions || [];
+
+      // BACKFILL: If updating an existing doc that has NO versions yet
+      if (initialDoc && currentVersions.length === 0) {
+        // Create an "Original" version representing the state before this edit
+        const originalVersion: DocumentVersion = {
+          id: `original-${initialDoc.id}`,
+          content: initialDoc.content, // The content when loaded
+          savedAt: initialDoc.createdAt || new Date(),
+          versionNumber: 1,
+          modifiedBy: {
+            id: initialDoc.user_id || 'unknown',
+            name: (initialDoc.user_id === user.id) ? user.full_name : "Original Author"
+          }
+        };
+        currentVersions = [originalVersion];
+      }
+
+      const newVersion: DocumentVersion = {
+        id: Date.now().toString(),
+        content: content,
+        savedAt: new Date(),
+        versionNumber: currentVersions.length + 1,
+        modifiedBy: {
+          id: user.id,
+          name: user.full_name
+        }
+      };
+      const updatedVersions = [...currentVersions, newVersion];
+
+      // Base Data
+      const docData: any = {
         title: title,
         type: docType,
         content: content,
         status: 'Draft',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        visibility: visibility,
+        department: user.department,
+        versions: updatedVersions
       };
 
       if (currentDocId) {
-        // Update
+        // Update - Do NOT overwrite user_id (Owner)
         const { error } = await supabase
           .from('documents')
           .update(docData)
           .eq('id', currentDocId);
 
         if (error) throw error;
-        alert("Document updated successfully!");
+        showAlert("Success", "Document updated successfully!", 'success');
       } else {
-        // Insert
+        // Insert - Set user_id (Owner)
+        docData.user_id = user.id;
+
         const { data, error } = await supabase
           .from('documents')
           .insert([docData])
@@ -530,12 +641,12 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
         if (error) throw error;
         if (data) {
           setCurrentDocId(data.id);
-          alert("New document created and saved!");
+          showAlert("Success", "New document created and saved!", 'success');
         }
       }
     } catch (e) {
       console.error("Failed to save document", e);
-      alert(`Failed to save document: ${(e as Error).message}`);
+      showAlert("Error", `Failed to save document: ${(e as Error).message}`, 'danger');
     }
   };
 
@@ -568,7 +679,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
         console.error("Failed to connect live agent:", e);
         setIsLiveActive(false);
         liveSessionRef.current = null;
-        alert(`Failed to connect to Voice Agent: ${(e as Error).message}`);
+        showAlert("Connection Error", `Failed to connect to Voice Agent: ${(e as Error).message}`, 'danger');
       }
     }
   };
@@ -578,7 +689,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
       {/* Left Panel - Resizable on Desktop */}
       <div
         ref={sidebarRef}
-        className="flex-shrink-0 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col h-[40vh] lg:h-full"
+        className="flex-shrink-0 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col h-[40vh] lg:h-full transition-all duration-300 ease-in-out"
         style={{
           width: isDesktop ? sidebarWidth : '100%',
           marginBottom: isDesktop ? 0 : '1rem'
@@ -589,139 +700,171 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
             <button onClick={onBack} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition">
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold">Generator</h2>
+            <h2 className="text-xl font-bold">
+              Generator
+              {!canEdit && (
+                <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full border border-gray-300 font-normal">View Only</span>
+              )}
+            </h2>
           </div>
 
-          <div className="bg-gray-100 dark:bg-gray-700 p-1 rounded-lg flex">
-            <button
-              onClick={() => setInputMode('form')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition ${inputMode === 'form' ? 'bg-white dark:bg-gray-600 shadow text-blue-700 dark:text-blue-300' : 'text-gray-500'}`}
-            >
-              <FormInput className="w-4 h-4" /> Form Input
-            </button>
-            <button
-              onClick={() => {
-                setInputMode('chat');
-                if (docType !== DocumentType.ACTIVITY_PROPOSAL) setDocType(DocumentType.ACTIVITY_PROPOSAL);
-              }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition ${inputMode === 'chat' ? 'bg-white dark:bg-gray-600 shadow text-blue-700 dark:text-blue-300' : 'text-gray-500'}`}
-            >
-              <Mic className="w-4 h-4" /> Voice Agent
-            </button>
-          </div>
+          {/* Only show Tabs if NOT Read Only */}
+          {canEdit && (
+            <div className="bg-gray-100 dark:bg-gray-700 p-1 rounded-lg flex">
+              <button
+                onClick={() => setInputMode('form')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition ${inputMode === 'form' ? 'bg-white dark:bg-gray-600 shadow text-blue-700 dark:text-blue-300' : 'text-gray-500'}`}
+              >
+                <FormInput className="w-4 h-4" /> Form Input
+              </button>
+              <button
+                onClick={() => {
+                  setInputMode('chat');
+                  if (docType !== DocumentType.ACTIVITY_PROPOSAL) setDocType(DocumentType.ACTIVITY_PROPOSAL);
+                }}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition ${inputMode === 'chat' ? 'bg-white dark:bg-gray-600 shadow text-blue-700 dark:text-blue-300' : 'text-gray-500'}`}
+              >
+                <Mic className="w-4 h-4" /> Voice Agent
+              </button>
+            </div>
+          )}
         </div>
 
-        {inputMode === 'form' ? (
-          <div className="p-4 md:p-6 overflow-y-auto flex-1 space-y-6">
-            <div>
-              <label className="block text-sm font-medium mb-2">Document Type</label>
-              <select
-                value={docType}
-                onChange={(e) => setDocType(e.target.value as DocumentType)}
-                className="w-full p-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600"
-              >
-                {Object.values(DocumentType).map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+        {/* Sidebar Content */}
+        {!canEdit ? (
+          <div className="p-8 text-center flex flex-col items-center justify-center h-full text-gray-500">
+            <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-full mb-4">
+              <Eye className="w-8 h-8 text-gray-400" />
             </div>
-
-            {/* Dynamic Fields */}
-            {docType === DocumentType.ACTIVITY_PROPOSAL && (
-              <>
-                <input name="orgName" placeholder="Organization Name" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                <input name="title" placeholder="Activity Title" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <input name="venue" placeholder="Venue" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                  <input type="date" name="date" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                </div>
-
-                <input name="proponent" placeholder="Proponent (Your Name)" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <input name="budget" placeholder="Est. Budget (e.g. 5,000)" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                  <input name="source" placeholder="Source (e.g. STF)" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                </div>
-
-                <textarea name="objectives" placeholder="Objectives (List them)" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 h-32" />
-              </>
-            )}
-
-            {docType === DocumentType.OFFICIAL_LETTER && (
-              <>
-                <input name="senderName" placeholder="Your Name" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                <input name="senderPosition" placeholder="Your Position" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                <input name="recipientName" placeholder="Recipient Name" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                <input name="subject" placeholder="Subject" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                <textarea name="details" placeholder="Key details to include in the body..." onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 h-32" />
-              </>
-            )}
-
-            {docType === DocumentType.RESOLUTION && (
-              <>
-                <input name="orgName" placeholder="Organization Name" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                <input name="resNum" placeholder="Resolution No. (e.g. 001-2024)" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                <input name="topic" placeholder="Topic/Subject" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                <textarea name="whereas" placeholder="Whereas clauses (Context)..." onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 h-24" />
-                <textarea name="resolved" placeholder="Resolved clause (Action)..." onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 h-24" />
-              </>
-            )}
-
-            <button
-              onClick={handleGenerate}
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white py-3 rounded-lg font-bold hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {loading ? (
-                <>
-                  <Bot className="w-5 h-5 animate-spin" /> Generating...
-                </>
-              ) : (
-                <><Bot className="w-5 h-5" /> Generate Document</>
-              )}
-            </button>
+            <p className="font-medium">View Only Mode</p>
+            <p className="text-sm mt-2 max-w-[200px]">
+              You are viewing a shared document. Editing controls are disabled.
+            </p>
           </div>
         ) : (
-          // Voice Agent Interface with Three.js Visualizer
-          <div className="flex flex-col flex-1 h-full bg-black relative overflow-hidden rounded-b-xl lg:rounded-b-none lg:rounded-br-none">
-            {/* Visualizer Canvas Container */}
-            <div
-              ref={canvasRef}
-              className="absolute inset-0 w-full h-full z-0"
-              style={{ background: 'radial-gradient(circle at center, #050510 0%, #000000 70%)' }}
-            />
+          inputMode === 'form' ? (
+            <div className="p-4 md:p-6 overflow-y-auto flex-1 space-y-6">
+              <div>
+                <label className="block text-sm font-medium mb-2">Document Type</label>
+                <select
+                  value={docType}
+                  onChange={(e) => setDocType(e.target.value as DocumentType)}
+                  className="w-full p-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600"
+                >
+                  {Object.values(DocumentType).map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
 
-            {/* UI Overlay */}
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-end pb-12 pointer-events-none">
-              <h3 className="text-xl md:text-2xl font-bold mb-2 text-white drop-shadow-[0_0_10px_rgba(0,200,255,0.8)] tracking-wide">
-                {isLiveActive ? "NEMSU AI COORDINATOR" : "NEMSU AI AGENT"}
-              </h3>
-              <p className="text-gray-300 mb-8 max-w-xs text-center drop-shadow-md text-sm md:text-base">
-                {isLiveActive
-                  ? "Listening to your proposal details..."
-                  : "Connect to start the interview process."}
-              </p>
+              <div>
+                <label className="block text-sm font-medium mb-2">Visibility {initialDoc && !isOwner && <span className="text-xs font-normal text-gray-500">(Owner only)</span>}</label>
+                <div className={`flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg ${initialDoc && !isOwner ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <button
+                    onClick={() => isOwner || !initialDoc ? setVisibility('private') : null}
+                    disabled={!!initialDoc && !isOwner}
+                    className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${visibility === 'private' ? 'bg-white dark:bg-gray-600 shadow text-blue-600' : 'text-gray-500'}`}
+                  >
+                    Private
+                  </button>
+                  <button
+                    onClick={() => isOwner || !initialDoc ? setVisibility('department') : null}
+                    disabled={!!initialDoc && !isOwner}
+                    className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${visibility === 'department' ? 'bg-white dark:bg-gray-600 shadow text-blue-600' : 'text-gray-500'}`}
+                  >
+                    Share with {user.department}
+                  </button>
+                </div>
+              </div>
+
+              {/* Dynamic Fields */}
+              {docType === DocumentType.ACTIVITY_PROPOSAL && (
+                <>
+                  <input name="orgName" placeholder="Organization Name" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                  <input name="title" placeholder="Activity Title" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input name="venue" placeholder="Venue" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                    <input type="date" name="date" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                  </div>
+
+                  <input name="proponent" placeholder="Proponent (Your Name)" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input name="budget" placeholder="Est. Budget (e.g. 5,000)" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                    <input name="source" placeholder="Source (e.g. STF)" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                  </div>
+
+                  <textarea name="objectives" placeholder="Objectives (List them)" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 h-32" />
+                </>
+              )}
+
+              {docType === DocumentType.OFFICIAL_LETTER && (
+                <>
+                  <input name="senderName" placeholder="Your Name" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                  <input name="senderPosition" placeholder="Your Position" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                  <input name="recipientName" placeholder="Recipient Name" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                  <input name="subject" placeholder="Subject" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                  <textarea name="details" placeholder="Key details to include in the body..." onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 h-32" />
+                </>
+              )}
+
+
 
               <button
-                onClick={toggleLiveAgent}
-                className={`
-                            px-6 py-3 md:px-8 md:py-4 rounded-full font-bold text-base md:text-lg flex items-center gap-3 transition-all transform hover:scale-105 shadow-2xl pointer-events-auto border-2
-                            ${isLiveActive
-                    ? 'bg-red-500/20 border-red-500 text-red-100 hover:bg-red-500 hover:text-white backdrop-blur-sm'
-                    : 'bg-blue-600/20 border-blue-500 text-blue-100 hover:bg-blue-500 hover:text-white backdrop-blur-sm'}
-                        `}
+                onClick={handleGenerate}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white py-3 rounded-lg font-bold hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {isLiveActive ? (
-                  <><PhoneOff className="w-5 h-5 md:w-6 md:h-6" /> End Session</>
+                {loading ? (
+                  <>
+                    <Bot className="w-5 h-5 animate-spin" /> Generating...
+                  </>
                 ) : (
-                  <><Mic className="w-5 h-5 md:w-6 md:h-6" /> Start Interview</>
+                  <><Bot className="w-5 h-5" /> Generate Document</>
                 )}
               </button>
             </div>
-          </div>
+          ) : (
+            // Voice Agent Interface with Three.js Visualizer
+            <div className="flex flex-col flex-1 h-full bg-black relative overflow-hidden rounded-b-xl lg:rounded-b-none lg:rounded-br-none">
+              {/* Visualizer Canvas Container */}
+              <div
+                ref={canvasRef}
+                className="absolute inset-0 w-full h-full z-0"
+                style={{ background: 'radial-gradient(circle at center, #050510 0%, #000000 70%)' }}
+              />
+
+              {/* UI Overlay */}
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-end pb-12 pointer-events-none">
+                <h3 className="text-xl md:text-2xl font-bold mb-2 text-white drop-shadow-[0_0_10px_rgba(0,200,255,0.8)] tracking-wide">
+                  {isLiveActive ? "NEMSU AI COORDINATOR" : "NEMSU AI AGENT"}
+                </h3>
+                <p className="text-gray-300 mb-8 max-w-xs text-center drop-shadow-md text-sm md:text-base">
+                  {isLiveActive
+                    ? "Listening to your proposal details..."
+                    : "Connect to start the interview process."}
+                </p>
+
+                <button
+                  onClick={toggleLiveAgent}
+                  className={`
+                            px-6 py-3 md:px-8 md:py-4 rounded-full font-bold text-base md:text-lg flex items-center gap-3 transition-all transform hover:scale-105 shadow-2xl pointer-events-auto border-2
+                            ${isLiveActive
+                      ? 'bg-red-500/20 border-red-500 text-red-100 hover:bg-red-500 hover:text-white backdrop-blur-sm'
+                      : 'bg-blue-600/20 border-blue-500 text-blue-100 hover:bg-blue-500 hover:text-white backdrop-blur-sm'}
+                        `}
+                >
+                  {isLiveActive ? (
+                    <><PhoneOff className="w-5 h-5 md:w-6 md:h-6" /> End Session</>
+                  ) : (
+                    <><Mic className="w-5 h-5 md:w-6 md:h-6" /> Start Interview</>
+                  )}
+                </button>
+              </div>
+            </div>
+          )
         )}
       </div>
-
       {/* Resize Handle (Desktop Only) */}
       <div
         className="hidden lg:flex w-5 cursor-col-resize items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0 text-gray-400 hover:text-blue-500 select-none"
@@ -736,18 +879,35 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
           <div className="h-full bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400">
             <Bot className="w-16 h-16 mb-4 text-blue-500 animate-bounce" />
             <p className="text-lg font-medium text-gray-600 dark:text-gray-300">Drafting your document...</p>
-            <p className="text-sm">Generating your document...</p>
+            <p className="text-sm">Please wait while AI generates the content.</p>
           </div>
         ) : (
-          <RichTextEditor
-            initialContent={result}
-            title={formData.title || formData.subject || "Document"}
-            onToggleVoice={toggleLiveAgent}
-            isVoiceActive={isLiveActive}
-            onSave={handleSaveToStorage}
-          />
+          <div className="h-full bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-hidden relative">
+              <RichTextEditor
+                initialContent={result}
+                title={formData.title || formData.subject || "Document"}
+                onToggleVoice={toggleLiveAgent}
+                isVoiceActive={isLiveActive}
+                onSave={handleSaveToStorage}
+                readOnly={!canEdit}
+              />
+            </div>
+          </div>
         )}
       </div>
+
+      {/* Alert Modal */}
+      <ConfirmModal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={modalState.onConfirm}
+        title={modalState.title}
+        message={modalState.message}
+        variant={modalState.variant}
+        showCancel={false}
+        confirmLabel="OK"
+      />
     </div>
   );
 };
