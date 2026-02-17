@@ -70,13 +70,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
           </h1>
         </div>
 
-        {/* Desktop Navigation Links */}
         <div className="hidden md:flex items-center gap-8 ml-auto px-8">
           <button
             onClick={() => handleNavigate(getHomeRoute())}
             className={`flex items-center gap-2 text-[15px] font-medium transition-colors ${(currentView === 'dashboard' || currentView === 'admin-dashboard')
-              ? 'text-blue-600'
-              : 'text-gray-600 hover:text-blue-600'
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-gray-500 dark:text-gray-300 hover:text-blue-600'
               }`}
           >
             <Home className="w-4 h-4" />
@@ -85,8 +84,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
           <button
             onClick={() => handleNavigate('documents')}
             className={`flex items-center gap-2 text-[15px] font-medium transition-colors ${currentView === 'documents'
-              ? 'text-blue-600'
-              : 'text-gray-600 hover:text-blue-600'
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-gray-500 dark:text-gray-300 hover:text-blue-600'
               }`}
           >
             <LayoutIcon className="w-4 h-4" />
@@ -95,8 +94,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
           <button
             onClick={() => handleNavigate('archives')}
             className={`flex items-center gap-2 text-[15px] font-medium transition-colors ${currentView === 'archives'
-              ? 'text-blue-600'
-              : 'text-gray-600 hover:text-blue-600'
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-gray-500 dark:text-gray-300 hover:text-blue-600'
               }`}
           >
             <Archive className="w-4 h-4" />
