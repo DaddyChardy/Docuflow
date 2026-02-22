@@ -10,13 +10,19 @@
   },
   "dependencies": {
     "@google/genai": "^1.41.0",
+    "@hocuspocus/provider": "^3.4.4",
     "@supabase/supabase-js": "^2.93.3",
+    "@superdoc-dev/react": "^1.0.0-rc.2",
+    "jszip": "^3.10.1",
+    "lib0": "^0.2.117",
     "lucide-react": "^0.554.0",
     "mammoth": "^1.11.0",
     "pdfjs-dist": "^5.4.624",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "three": "^0.182.0"
+    "superdoc": "^1.15.0",
+    "three": "^0.182.0",
+    "yjs": "^13.6.29"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

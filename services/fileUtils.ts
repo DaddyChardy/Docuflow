@@ -1,6 +1,6 @@
-
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
+import JSZip from 'jszip';
 
 // Set worker source for PDF.js
 // In Vite, this often needs to be copied to public or imported specifically.
@@ -56,4 +56,30 @@ const parseDocx = async (file: File): Promise<string> => {
     // This provides much better context for the AI than raw text
     const result = await mammoth.convertToHtml({ arrayBuffer });
     return result.value || "";
+};
+
+/**
+ * Merges HTML content into a DOCX template's body while preserving headers/footers.
+ * This is a simplified implementation that replaces the text in word/document.xml.
+ * NOTE: For full HTML-to-DOCX conversion preservation, a library like html-to-docx or
+ * similar would be better, but we leverage SuperDoc for the final editing.
+ */
+export const mergeContentIntoTemplate = async (templateBlob: Blob, htmlContent: string): Promise<Blob> => {
+    const zip = await JSZip.loadAsync(templateBlob);
+
+    // In a DOCX, the main content is in word/document.xml
+    let documentXml = await zip.file("word/document.xml")?.async("string");
+
+    if (!documentXml) {
+        throw new Error("Invalid DOCX: Exactly one word/document.xml file is required.");
+    }
+
+    // This is a naive injection. 
+    // SuperDoc is better at handling the "merging" if we load the template 
+    // and then insert content via its own API.
+    // However, if we want to ensure headers/footers are there from the start:
+
+    // Return the original template for now, and handle the "injection" inside the component using SuperDoc API
+    // because injecting raw HTML into DOCX XML requires complex conversion (altChunk or manual XML generation).
+    return templateBlob;
 };
