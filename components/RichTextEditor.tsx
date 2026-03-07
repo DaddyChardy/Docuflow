@@ -222,11 +222,14 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const editorModules = useMemo(() => ({
     toolbar: {
       excludeItems: [
+        'copyFormat',
+        'linkedStyles',
+        'clearFormatting',
         'documentMode',
         'rejectTrackedChangeOnSelection',
         'acceptTrackedChangeBySelection',
         'image',
-        'link'
+        'link',
       ]
     },
   }), []);
@@ -425,6 +428,21 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
       {/* SuperDoc Editor Area */}
       <div className="flex-1 overflow-y-auto print-container flex flex-col items-center">
+        <style>
+          {`
+            .superdoc-toolbar-container {
+              position: sticky;
+              top: 0;
+              z-index: 30;
+              background: #D1D5DB;
+            }
+
+            .superdoc-document-editor {
+              font-family: "Times New Roman", serif;
+              font-size: 12pt;
+            }
+          `}
+        </style>
         {isTemplateLoaded ? (
           <SuperDocEditor
             key={templateUrl || 'no-template'}

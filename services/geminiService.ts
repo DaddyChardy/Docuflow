@@ -146,10 +146,11 @@ class GeminiService {
         6. Use the content and structure of that selected document as your primary guide/template.
 
         STRUCTURAL MANDATES:
-        - **Signatories**: If the document is an "Activity Proposal" or similar, you MUST append a "Signatories" section at the bottom.
+        - **Signatories**: You MUST append a "Signatories" section at the bottom.
+          - Use the "signatories" array from the formData if provided. Each signatory has a 'name' and 'position'.
           - Format this using OOXML tables (<w:tbl>) with invisible borders (<w:tcBorders> with val="nil" inside <w:tblBorders>) to ensure proper alignment.
-          - **Left Align**: "Prepared by" (Proponent)
-          - **Center/Right Align**: "Noted by" (Adviser, Chair), "Recommending Approval" (Dean), "Approved" (Campus Director/Chancellor).
+          - Arrange them professionally: 2 or 3 per row if there are many, or spaced out horizontally if few.
+          - Labels like "Prepared by", "Noted by", etc., should be used appropriately based on the number and order of signatories if not explicitly provided, but primarily use the Names and Positions given.
           - Do NOT list them in a single vertical column; mimic the wide layout of official documents.
         `;
 
@@ -202,10 +203,12 @@ class GeminiService {
                 
                 From: ${formData.senderName} (${formData.senderPosition})
                 To: ${formData.recipientName}
-                Subject: ${formData.subject}
+                ${formData.thru ? `Thru: ${formData.thru}` : ''}
+                ${formData.subject ? `Subject: ${formData.subject}` : ''}
                 Details: ${formData.details}
+                Signatories: ${JSON.stringify(formData.signatories)}
                 
-                Return pure OOXML format. Start with the Date, then the Recipient Block, then the Salutation. Use proper <w:p> for paragraphs.`;
+                Return pure OOXML format. Start with the Date, then the Recipient Block, then the Thru block (if provided), then the Subject line (if provided), then the Salutation. End with the Signatories section as defined in basic instructions. Use proper <w:p> for paragraphs.`;
                 break;
             default:
                 searchContext = `${type} document details`;
@@ -469,9 +472,11 @@ ${tmplData[0].content}
             requiredFields = `
 1. From (Sender Name and Position)
 2. To (Recipient Name and Position)
-3. Subject
-4. Key details to include in the body`;
-            expectedKeys = `JSON keys to use: "senderName", "senderPosition", "recipientName", "subject", "details"`;
+3. Thru (Optional - who else should see this first?)
+4. Subject
+5. Key details to include in the body
+6. Signatories (Names and Positions of people who will sign the letter)`;
+            expectedKeys = `JSON keys to use: "senderName", "senderPosition", "recipientName", "thru", "subject", "details", "signatories" (array of {name, position})`;
         }
 
         const systemInstructionText = `You are the Voice Agent for NEMSU SmartDraft (Identity: Gemini Pulse). 

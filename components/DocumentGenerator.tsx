@@ -4,7 +4,7 @@ import { DocumentType, GeneratedDocument, DocumentVersion, User, DocumentTypePer
 import { ConfirmModal } from './ConfirmModal';
 import { generateDocument, LiveSession } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
-import { Bot, ArrowLeft, FormInput, Mic, PhoneOff, GripVertical, Eye, CheckCircle, Info, AlertTriangle } from 'lucide-react';
+import { Bot, ArrowLeft, FormInput, Mic, PhoneOff, GripVertical, Eye, CheckCircle, Info, AlertTriangle, Plus, Trash2, UserPlus } from 'lucide-react';
 import { useNotification } from './NotificationProvider';
 import { RichTextEditor } from './RichTextEditor';
 import * as THREE from 'three';
@@ -168,9 +168,13 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
 
   const [formData, setFormData] = useState({
     orgName: '', title: '', venue: 'North Eastern Mindanao State University – Tandag, Main Campus', date: '', proponent: user.full_name, budget: '', source: 'STF', objectives: '',
-    senderName: user.full_name, senderPosition: user.specific_role || '', recipientName: '', subject: '', details: '', resNum: '', topic: '', whereas: '', resolved: '',
-    detailedInstructions: ''
+    senderName: user.full_name, senderPosition: user.specific_role || '', recipientName: '', thru: '', subject: '', details: '', resNum: '', topic: '', whereas: '', resolved: '',
+    detailedInstructions: '',
+    signatories: [{ name: user.full_name, position: user.specific_role || '' }]
   });
+
+  const [showThru, setShowThru] = useState(false);
+  const [showSubject, setShowSubject] = useState(false);
 
   const [customVenue, setCustomVenue] = useState(false);
   const [customBudget, setCustomBudget] = useState(false);
@@ -325,6 +329,25 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSignatoryChange = (index: number, field: 'name' | 'position', value: string) => {
+    const newSignatories = [...formData.signatories];
+    newSignatories[index] = { ...newSignatories[index], [field]: value };
+    setFormData({ ...formData, signatories: newSignatories });
+  };
+
+  const addSignatory = () => {
+    setFormData({
+      ...formData,
+      signatories: [...formData.signatories, { name: '', position: '' }]
+    });
+  };
+
+  const removeSignatory = (index: number) => {
+    if (formData.signatories.length <= 1) return;
+    const newSignatories = formData.signatories.filter((_, i) => i !== index);
+    setFormData({ ...formData, signatories: newSignatories });
   };
 
   const handleGenerate = async (overrideData?: Record<string, string>) => {
@@ -545,6 +568,48 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
                     </select>
                   </div>
                   <textarea name="objectives" value={formData.objectives} placeholder="Objectives" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 h-24" />
+
+                  {/* Signatories Section for Activity Proposal */}
+                  <div className="space-y-3 p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-bold flex items-center gap-2">
+                        <UserPlus className="w-4 h-4 text-blue-500" /> Signatories
+                      </h4>
+                      <button
+                        onClick={addSignatory}
+                        className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md transition-all"
+                      >
+                        <Plus className="w-3 h-3" /> Add Signatory
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {formData.signatories.map((sig: any, index: number) => (
+                        <div key={index} className="flex flex-col gap-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-600 shadow-sm relative group/sig">
+                          <input
+                            placeholder="Name"
+                            value={sig.name}
+                            onChange={(e) => handleSignatoryChange(index, 'name', e.target.value)}
+                            className="text-sm w-full p-2 border-b dark:border-gray-600 focus:border-blue-500 outline-none bg-transparent"
+                          />
+                          <input
+                            placeholder="Position"
+                            value={sig.position}
+                            onChange={(e) => handleSignatoryChange(index, 'position', e.target.value)}
+                            className="text-sm w-full p-2 bg-transparent outline-none italic text-gray-500"
+                          />
+                          {formData.signatories.length > 1 && (
+                            <button
+                              onClick={() => removeSignatory(index)}
+                              className="absolute top-2 right-2 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-all opacity-0 group-hover/sig:opacity-100"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <textarea name="detailedInstructions" value={formData.detailedInstructions} placeholder="Detailed Instructions (Optional info to guide AI generation)" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 h-24" />
                 </>
               )}
@@ -553,8 +618,93 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
                   <input name="senderName" value={formData.senderName} placeholder="Your Name" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
                   <input name="senderPosition" value={formData.senderPosition} placeholder="Your Position" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
                   <input name="recipientName" value={formData.recipientName} placeholder="Recipient Name" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                  <input name="subject" value={formData.subject} placeholder="Subject" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+
+                  <div className="flex flex-col gap-2 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Optional Sections</p>
+                    <div className="flex flex-wrap gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={showThru}
+                          onChange={(e) => setShowThru(e.target.checked)}
+                          className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-blue-600 transition-colors">Include "THRU"</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={showSubject}
+                          onChange={(e) => setShowSubject(e.target.checked)}
+                          className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-blue-600 transition-colors">Include "SUBJECT"</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {showThru && (
+                    <input
+                      name="thru"
+                      value={formData.thru}
+                      placeholder="Thru (e.g. The Campus Director)"
+                      onChange={handleChange}
+                      className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 animate-in fade-in slide-in-from-top-1"
+                    />
+                  )}
+
+                  {showSubject && (
+                    <input
+                      name="subject"
+                      value={formData.subject}
+                      placeholder="Subject"
+                      onChange={handleChange}
+                      className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 animate-in fade-in slide-in-from-top-1"
+                    />
+                  )}
+
                   <textarea name="details" value={formData.details} placeholder="Details..." onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 h-32" />
+
+                  {/* Signatories Section for Official Letter */}
+                  <div className="space-y-3 p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-bold flex items-center gap-2">
+                        <UserPlus className="w-4 h-4 text-blue-500" /> Signatories
+                      </h4>
+                      <button
+                        onClick={addSignatory}
+                        className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md transition-all"
+                      >
+                        <Plus className="w-3 h-3" /> Add Signatory
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {formData.signatories.map((sig: any, index: number) => (
+                        <div key={index} className="flex flex-col gap-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-600 shadow-sm relative group/sig">
+                          <input
+                            placeholder="Name"
+                            value={sig.name}
+                            onChange={(e) => handleSignatoryChange(index, 'name', e.target.value)}
+                            className="text-sm w-full p-2 border-b dark:border-gray-600 focus:border-blue-500 outline-none bg-transparent"
+                          />
+                          <input
+                            placeholder="Position"
+                            value={sig.position}
+                            onChange={(e) => handleSignatoryChange(index, 'position', e.target.value)}
+                            className="text-sm w-full p-2 bg-transparent outline-none italic text-gray-500"
+                          />
+                          {formData.signatories.length > 1 && (
+                            <button
+                              onClick={() => removeSignatory(index)}
+                              className="absolute top-2 right-2 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-all opacity-0 group-hover/sig:opacity-100"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </>
               )}
               <button onClick={() => handleGenerate()} disabled={loading} className="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white py-3 rounded-lg font-bold hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-50">
