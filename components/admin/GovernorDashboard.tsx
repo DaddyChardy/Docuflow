@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, SpecificRole, Department, DocumentType } from '../../types';
 import { supabase } from '../../services/supabaseClient';
-import { Users, FileText, Upload, Trash2, Check, X, Shield, Plus, LogOut, Settings, Database, Archive, Home, Loader, AlertCircle } from 'lucide-react';
+import { Users, FileText, Upload, Trash2, Check, X, Shield, Plus, LogOut, Settings, Database, Archive, Home, Loader, AlertCircle, Power } from 'lucide-react';
 import { useNotification } from '../NotificationProvider';
 import { parseFile } from '../../services/fileUtils';
 import { generateDatasetContext, generateEmbedding } from '../../services/geminiService';
@@ -64,7 +64,7 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
                 .select(`*, profiles:user_id (full_name, email, avatar_url)`)
                 .eq('department', user.department)
                 .eq('role', 'officer')
-                .neq('status', 'disabled')
+                .in('status', ['active', 'pending', 'disabled'])
                 .order('created_at', { ascending: false });
 
             if (offError) throw offError;
@@ -111,6 +111,31 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
         }
     };
 
+    const handleDisableOfficer = async (officer: User) => {
+        confirmAction({
+            title: "Disable Account",
+            message: `Are you sure you want to disable ${officer.full_name}'s account? They will no longer be able to access their workspace.`,
+            variant: "error",
+            confirmLabel: "Disable Account",
+            onConfirm: async () => {
+                try {
+                    const { error } = await supabase
+                        .from('user_roles')
+                        .update({ status: 'disabled' })
+                        .eq('id', officer.role_id);
+
+                    if (error) throw error;
+                    showToast("Account disabled successfully", "success");
+                    setSelectedOfficer(null);
+                    fetchData();
+                } catch (err) {
+                    console.error(err);
+                    showToast("Failed to disable account", "error");
+                }
+            }
+        });
+    };
+
     const handleApproveOfficer = async () => {
         if (!selectedOfficer) return;
         const finalRole = assignRole === 'Other' ? customRole : assignRole;
@@ -130,10 +155,12 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
             }).eq('id', selectedOfficer.role_id);
 
             if (error) throw error;
+            showToast(selectedOfficer.status === 'disabled' ? "Account re-enabled successfully" : "Officer approved successfully", "success");
             setSelectedOfficer(null);
             fetchData();
         } catch (err) {
             console.error(err);
+            showToast("Failed to update account", "error");
         }
     };
 
@@ -390,12 +417,13 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
                                         </button>
                                     )}
 
-                                    {officer.status === 'active' && (
+                                    {(officer.status === 'active' || officer.status === 'disabled') && (
                                         <button
                                             onClick={() => handleEditOfficer(officer)}
-                                            className="p-2 text-gray-400 hover:text-gray-600"
+                                            className={`p-2 transition ${officer.status === 'disabled' ? 'text-red-400 hover:text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                            title={officer.status === 'disabled' ? "Re-enable & Edit" : "Edit Permissions"}
                                         >
-                                            <Settings className="w-5 h-5" />
+                                            {officer.status === 'disabled' ? <Power className="w-5 h-5" /> : <Settings className="w-5 h-5" />}
                                         </button>
                                     )}
                                 </div>
@@ -631,7 +659,7 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in backdrop-blur-sm">
                     <div className="bg-white rounded-xl max-w-md w-full p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
                         <h3 className="text-xl font-bold mb-4 dark:text-white">
-                            {selectedOfficer.status === 'pending' ? 'Approve Officer' : 'Edit Officer Access'}
+                            {selectedOfficer.status === 'pending' ? 'Approve Officer' : (selectedOfficer.status === 'disabled' ? 'Re-enable Officer' : 'Edit Officer Access')}
                         </h3>
                         <p className="text-gray-600 mb-6 dark:text-gray-300">Assign role and permissions for <strong>{selectedOfficer.full_name}</strong>.</p>
 
@@ -698,14 +726,24 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
                             </div>
                         </div>
 
-                        <div className="flex gap-3">
-                            <button onClick={() => setSelectedOfficer(null)} className="flex-1 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-300 dark:hover:bg-gray-700">Cancel</button>
-                            <button
-                                onClick={handleApproveOfficer}
-                                className="flex-1 bg-blue-900 text-white py-2.5 rounded-lg hover:bg-blue-800 font-medium"
-                            >
-                                {selectedOfficer.status === 'pending' ? 'Confirm Approval' : 'Save Changes'}
-                            </button>
+                        <div className="flex flex-col gap-3">
+                            <div className="flex gap-3">
+                                <button onClick={() => setSelectedOfficer(null)} className="flex-1 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-300 dark:hover:bg-gray-700">Cancel</button>
+                                <button
+                                    onClick={handleApproveOfficer}
+                                    className="flex-1 bg-blue-900 text-white py-2.5 rounded-lg hover:bg-blue-800 font-medium"
+                                >
+                                    {selectedOfficer.status === 'pending' ? 'Confirm Approval' : (selectedOfficer.status === 'disabled' ? 'Enable & Save' : 'Save Changes')}
+                                </button>
+                            </div>
+                            {selectedOfficer.status === 'active' && (
+                                <button
+                                    onClick={() => handleDisableOfficer(selectedOfficer)}
+                                    className="w-full py-2.5 text-red-600 hover:bg-red-50 rounded-lg text-sm font-bold flex items-center justify-center gap-2 border border-red-100 dark:text-red-400 dark:hover:bg-red-900/20 dark:border-red-900/50"
+                                >
+                                    <Power className="w-4 h-4" /> Disable Account
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
