@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DocumentType, GeneratedDocument, DocumentVersion, User, DocumentTypePermissionKey } from '../types';
 import { ConfirmModal } from './ConfirmModal';
-import { generateDocument, LiveSession } from '../services/geminiService';
+import { generateDocument, LiveSession, generateDocumentTitle } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import { Bot, ArrowLeft, FormInput, Mic, PhoneOff, GripVertical, Eye, CheckCircle, Info, AlertTriangle, Plus, Trash2, UserPlus } from 'lucide-react';
 import { useNotification } from './NotificationProvider';
@@ -364,13 +364,58 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
     }
   };
 
+  const ensureUniqueTitle = async (baseTitle: string, userId: string): Promise<string> => {
+    let title = baseTitle;
+    let counter = 1;
+    let isUnique = false;
+
+    while (!isUnique) {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('title', title)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error checking title uniqueness:", error);
+        break; // Fallback to current title if error
+      }
+
+      if (!data) {
+        isUnique = true;
+      } else {
+        // If updating an existing doc, and it's THIS document, it's fine
+        if (currentDocId && data.id === currentDocId) {
+          isUnique = true;
+        } else {
+          title = `${baseTitle} (${counter++})`;
+        }
+      }
+    }
+    return title;
+  };
+
   const handleSaveToStorage = async (content: string) => {
     if (!user || !user.id) {
       showToast("You must be logged in to save documents.", "warning");
       return;
     }
+    setLoading(true);
     try {
-      let title = formData.title || formData.subject || `${docType} - ${new Date().toLocaleDateString()}`;
+      // AI generates the title based on content if it's a new document or user hasn't explicitly set a custom one
+      let title = formData.title || formData.subject;
+
+      if (!title || title.trim() === "") {
+        title = await generateDocumentTitle(content, docType);
+      }
+
+      // Ensure title is unique for this user
+      title = await ensureUniqueTitle(title, user.id);
+
+      // Update form data so UI reflects the new title
+      setFormData(prev => ({ ...prev, title }));
+
       if (initialDoc && !isOwner && !isSharedWithDept) {
         const hasTypePermission = user.user_type === 'admin' || user.user_type === 'super_admin' ||
           (user.permissions && user.permissions[DocumentTypePermissionKey[docType]] === 'edit');
@@ -412,6 +457,8 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
     } catch (e) {
       console.error("Failed to save document", e);
       showAlert("Error", `Failed to save document: ${(e as Error).message}`, 'danger');
+    } finally {
+      setLoading(false);
     }
   };
 

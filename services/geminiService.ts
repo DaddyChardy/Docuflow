@@ -312,6 +312,36 @@ class GeminiService {
             }
         });
     }
+
+    public async generateDocumentTitle(content: string, type: DocumentType): Promise<string> {
+        return this.withRetry(async () => {
+            const ai = this.getAI();
+            const prompt = `
+            Analyze the following document content and provide a very concise, professional title (max 6-8 words).
+            Document Type: ${type}
+            
+            Output ONLY the title string. No other text, quotes, or formatting.
+            
+            CONTENT SNIPPET:
+            ${content.substring(0, 5000)}
+            `;
+
+            try {
+                const response = await ai.models.generateContent({
+                    model: "gemini-2.5-flash",
+                    contents: [{
+                        role: "user",
+                        parts: [{ text: prompt }]
+                    }]
+                });
+                // @ts-ignore
+                return response.text?.trim() || (response.candidates?.[0]?.content?.parts?.[0]?.text?.trim()) || "Untitled Document";
+            } catch (error) {
+                console.error("Title Generation Error:", error);
+                return "Untitled Document";
+            }
+        });
+    }
 }
 
 export const geminiService = new GeminiService();
@@ -321,6 +351,7 @@ export const geminiService = new GeminiService();
 export const generateEmbedding = (text: string) => geminiService.generateEmbedding(text);
 export const generateDocument = (type: DocumentType, formData: Record<string, any>, userDepartment?: string) => geminiService.generateDocument(type, formData, userDepartment);
 export const generateDatasetContext = (content: string) => geminiService.generateDatasetContext(content);
+export const generateDocumentTitle = (content: string, type: DocumentType) => geminiService.generateDocumentTitle(content, type);
 
 const activityProposalTool: FunctionDeclaration = {
     name: 'submit_activity_proposal',
