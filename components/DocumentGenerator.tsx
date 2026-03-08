@@ -617,8 +617,8 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
                 <>
                   <input name="orgName" value={formData.orgName} placeholder="Organization Name" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
                   <input name="title" value={formData.title} placeholder="Activity Title" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className={`flex gap-2 ${customVenue ? 'sm:col-span-2' : ''}`}>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
                       <CustomSelect
                         className={`${customVenue ? 'w-20' : 'w-full'} transition-all`}
                         value={customVenue ? "Others" : formData.venue}
@@ -640,12 +640,11 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
                         <input name="venue" placeholder="Specify Venue" onChange={handleChange} className="flex-1 min-w-0 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 animate-in fade-in slide-in-from-left-1" />
                       )}
                     </div>
-                    {!customVenue && <input type="date" name="date" value={formData.date} onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />}
+                    <input type="date" name="date" value={formData.date} onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
                   </div>
-                  {customVenue && <input type="date" name="date" value={formData.date} onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 mt-2" />}
                   <input name="proponent" value={formData.proponent} placeholder="Proponent (Your Name)" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className={`flex gap-2 ${customBudget ? 'sm:col-span-2' : ''}`}>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
                       <CustomSelect
                         className={`${customBudget ? 'w-20' : 'w-full'} transition-all`}
                         value={customBudget ? "Others" : (["0-5000", "5001-10000", "10001-20000", "20001-30000"].includes(formData.budget) ? formData.budget : (formData.budget === '' ? '' : "Others"))}
@@ -672,19 +671,11 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
                         <input name="budget" placeholder="Specify Budget" onChange={handleChange} className="flex-1 min-w-0 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 animate-in fade-in slide-in-from-left-1" />
                       )}
                     </div>
-                    {!customBudget && (
-                      <select name="source" value={formData.source} onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
-                        <option value="STF">STF</option>
-                        <option value="GAA">GAA</option>
-                      </select>
-                    )}
-                  </div>
-                  {customBudget && (
-                    <select name="source" value={formData.source} onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 mt-2">
+                    <select name="source" value={formData.source} onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
                       <option value="STF">STF</option>
                       <option value="GAA">GAA</option>
                     </select>
-                  )}
+                  </div>
                   <textarea name="objectives" value={formData.objectives} placeholder="Objectives" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 h-24" />
 
                   {/* Signatories Section for Activity Proposal */}

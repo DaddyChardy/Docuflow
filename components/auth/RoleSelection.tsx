@@ -123,7 +123,7 @@ export const RoleSelection: React.FC<RoleSelectionProps> = ({ user, onRequestSub
                                 <GraduationCap className="w-10 h-10" />
                             </div>
                             <div className="text-center">
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Student Officer</h3>
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">College Officer</h3>
                                 <p className="text-gray-500 dark:text-gray-400 text-sm">For elected officers (Vice Governor and below)</p>
                             </div>
                         </button>
