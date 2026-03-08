@@ -608,9 +608,9 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Visibility {initialDoc && !isOwner && <span className="text-xs font-normal text-gray-500">(Owner only)</span>}</label>
-                <div className={`flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg ${initialDoc && !isOwner ? 'opacity-50 pointer-events-none' : ''}`}>
-                  <button onClick={() => isOwner || !initialDoc ? setVisibility('private') : null} disabled={!!initialDoc && !isOwner} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${visibility === 'private' ? 'bg-white dark:bg-gray-600 shadow text-blue-600' : 'text-gray-500'}`}>Private</button>
-                  <button onClick={() => isOwner || !initialDoc ? setVisibility('department') : null} disabled={!!initialDoc && !isOwner} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${visibility === 'department' ? 'bg-white dark:bg-gray-600 shadow text-blue-600' : 'text-gray-500'}`}>Allow Collaboration</button>
+                <div className={`flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg ${initialDoc && !isOwner ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <button onClick={() => isOwner || !initialDoc ? setVisibility('private') : null} disabled={!!initialDoc && !isOwner} className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${visibility === 'private' ? 'bg-white dark:bg-gray-600 shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Private</button>
+                  <button onClick={() => isOwner || !initialDoc ? setVisibility('department') : null} disabled={!!initialDoc && !isOwner} className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${visibility === 'department' ? 'bg-white dark:bg-gray-600 shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Allow Collaboration</button>
                 </div>
               </div>
               {docType === DocumentType.ACTIVITY_PROPOSAL && (

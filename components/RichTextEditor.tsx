@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Save, Download, Printer, Mic, MicOff, Maximize2, Minimize2, CheckCircle, AlertCircle,
-  Database, Search, X, Loader, Tag
+  Database, Search, X, Loader, Tag, Plus
 } from 'lucide-react';
 import { useNotification } from './NotificationProvider';
 import { SuperDocEditor } from '@superdoc-dev/react';
@@ -46,6 +46,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [priceListStep, setPriceListStep] = useState<1 | 2>(1); // 1: Select, 2: Quantities
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
+  const [manualEntries, setManualEntries] = useState<any[]>([]);
+  const [isAddingManual, setIsAddingManual] = useState(false);
+  const [newManualItem, setNewManualItem] = useState({ description: '', unit: '', quantity: 1, price: 0 });
 
   // Silence Vue mounting warning as requested by user
   useEffect(() => {
@@ -250,6 +253,106 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     },
   }), []);
 
+  const syncItemsFromDoc = async (itemsList: any[]) => {
+    const superdoc = editorInstanceRef.current;
+    if (!superdoc) return;
+
+    try {
+      const currentBlob = await superdoc.export({ triggerDownload: false });
+      if (!currentBlob) return;
+
+      const JSZip = (await import('jszip')).default;
+      const zip = await JSZip.loadAsync(currentBlob);
+      const documentFile = zip.file('word/document.xml');
+      if (!documentFile) return;
+
+      const documentXml = await documentFile.async('string');
+      // Look for a table that contains the "Particulars" header
+      const priceTableRegex = /<w:tbl>(?:(?!<\/w:tbl>)[\s\S])*?Particulars(?:(?!<\/w:tbl>)[\s\S])*?<\/w:tbl>/;
+      const match = documentXml.match(priceTableRegex);
+
+      if (match) {
+        const tableXml = match[0];
+        const rowRegex = /<w:tr[^>]*>[\s\S]*?<\/w:tr>/g;
+        const rows = tableXml.match(rowRegex) || [];
+
+        const newSelectedIds = new Set<string>();
+        const newQuantities: Record<string, number> = {};
+        const newManualEntries: any[] = [];
+
+        // Helper to extract text from cell
+        const extractText = (xml: string) => {
+          const textMatch = xml.match(/<w:t[^>]*>(.*?)<\/w:t>/g);
+          return textMatch ? textMatch.map(t => t.replace(/<[^>]*>/g, '')).join('') : '';
+        };
+
+        // Skip header (0), and process rows until "GRAND TOTAL"
+        for (let i = 1; i < rows.length; i++) {
+          const rowXml = rows[i];
+          if (rowXml.includes('GRAND TOTAL')) continue;
+
+          // Extract cells
+          const cellRegex = /<w:tc[^>]*>[\s\S]*?<\/w:tc>/g;
+          const cells = rowXml.match(cellRegex) || [];
+          if (cells.length < 3) continue;
+
+          const description = extractText(cells[0]).trim();
+          if (!description || description === 'Particulars') continue;
+
+          const unit = extractText(cells[1]).trim();
+          const qtyText = extractText(cells[2]).trim();
+          const qty = parseInt(qtyText) || 0;
+
+          // Match with price list - prioritize exact description match
+          const matchedItem = itemsList.find(item => item.description?.trim() === description);
+          if (matchedItem) {
+            newSelectedIds.add(matchedItem.id);
+            newQuantities[matchedItem.id] = qty;
+          } else {
+            // Check if it has a price in the 4th cell
+            const priceText = extractText(cells[3]).replace(/[^0-9.]/g, '');
+            const price = parseFloat(priceText) || 0;
+            newManualEntries.push({ description, unit, quantity: qty, price });
+          }
+        }
+
+        setSelectedItemIds(newSelectedIds);
+        setItemQuantities(newQuantities);
+        setManualEntries(newManualEntries);
+        console.log("Synced items from document:", {
+          dbItems: newSelectedIds.size,
+          manualItems: newManualEntries.length
+        });
+      }
+    } catch (err) {
+      console.error("Sync from doc failed:", err);
+    }
+  };
+
+  const handleAddManualItem = () => {
+    if (!newManualItem.description) {
+      showToast("Particulars are required", "error");
+      return;
+    }
+    setManualEntries(prev => [...prev, { ...newManualItem }]);
+    setNewManualItem({ description: '', unit: '', quantity: 1, price: 0 });
+    setIsAddingManual(false);
+    showToast("Item added to list", "success");
+  };
+
+  const updateManualEntry = (index: number, field: string, value: any) => {
+    setManualEntries(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const removeManualEntry = (index: number) => {
+    setManualEntries(prev => prev.filter((_, i) => i !== index));
+    showToast("Item removed", "success");
+  };
+
   const fetchPriceList = async () => {
     setIsLoadingPriceItems(true);
     try {
@@ -259,7 +362,11 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         .order('description', { ascending: true });
 
       if (error) throw error;
-      setPriceListItems(data || []);
+      const items = data || [];
+      setPriceListItems(items);
+
+      // Auto-sync after fetching items
+      await syncItemsFromDoc(items);
     } catch (err) {
       console.error("Error fetching price list:", err);
       showToast("Failed to load price list items.", "error");
@@ -269,15 +376,19 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   };
 
   useEffect(() => {
-    if (isPriceListOpen && priceListItems.length === 0) {
-      fetchPriceList();
+    if (isPriceListOpen) {
+      if (priceListItems.length === 0) {
+        fetchPriceList();
+      } else {
+        syncItemsFromDoc(priceListItems);
+      }
     }
   }, [isPriceListOpen]);
 
   // Handle Table Insertion
   const handleInsertPriceTable = async () => {
     const superdoc = editorInstanceRef.current;
-    if (!superdoc || selectedItemIds.size === 0) return;
+    if (!superdoc || (selectedItemIds.size === 0 && manualEntries.length === 0)) return;
 
     try {
       const currentBlob = await superdoc.export({ triggerDownload: false });
@@ -317,6 +428,22 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <w:tc><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>${item.unit || ''}</w:t></w:r></w:p></w:tc>
             <w:tc><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>${qty}</w:t></w:r></w:p></w:tc>
             <w:tc><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:t>₱${(item.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</w:t></w:r></w:p></w:tc>
+            <w:tc><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:t>₱${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</w:t></w:r></w:p></w:tc>
+          </w:tr>
+        `;
+      });
+
+      // Add Manual Entries
+      manualEntries.forEach(entry => {
+        const total = entry.quantity * entry.price;
+        grandTotal += total;
+
+        tableRows += `
+          <w:tr>
+            <w:tc><w:p><w:r><w:t>${entry.description}</w:t></w:r></w:p></w:tc>
+            <w:tc><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>${entry.unit || ''}</w:t></w:r></w:p></w:tc>
+            <w:tc><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>${entry.quantity}</w:t></w:r></w:p></w:tc>
+            <w:tc><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:t>₱${entry.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</w:t></w:r></w:p></w:tc>
             <w:tc><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:t>₱${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</w:t></w:r></w:p></w:tc>
           </w:tr>
         `;
@@ -510,20 +637,88 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               </button>
             </div>
 
-            {/* Search Bar */}
+            {/* Search Bar & Add Button */}
             <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search by description, object, or category..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all dark:text-white"
-                  autoFocus
-                />
+              <div className="flex gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by description..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all dark:text-white"
+                    autoFocus
+                  />
+                </div>
+                {priceListStep === 1 && (
+                  <button
+                    onClick={() => setIsAddingManual(!isAddingManual)}
+                    className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${isAddingManual ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
+                  >
+                    {isAddingManual ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    <span>{isAddingManual ? 'Cancel' : 'New Item'}</span>
+                  </button>
+                )}
               </div>
             </div>
+
+            {/* Manual Entry Form */}
+            {isAddingManual && priceListStep === 1 && (
+              <div className="px-6 py-4 bg-indigo-50/50 dark:bg-indigo-900/10 border-b border-indigo-100 dark:border-indigo-900/30 animate-in slide-in-from-top duration-200">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                  <div className="md:col-span-4">
+                    <label className="block text-[10px] font-bold text-indigo-400 uppercase mb-1">Particulars</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Custom Office Chair"
+                      value={newManualItem.description}
+                      onChange={(e) => setNewManualItem({ ...newManualItem, description: e.target.value })}
+                      className="w-full p-2 bg-white dark:bg-gray-700 border border-indigo-100 dark:border-indigo-800 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-indigo-400 uppercase mb-1">Unit</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. piece"
+                      value={newManualItem.unit}
+                      onChange={(e) => setNewManualItem({ ...newManualItem, unit: e.target.value })}
+                      className="w-full p-2 bg-white dark:bg-gray-700 border border-indigo-100 dark:border-indigo-800 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-indigo-400 uppercase mb-1">Qty</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={newManualItem.quantity}
+                      onChange={(e) => setNewManualItem({ ...newManualItem, quantity: parseInt(e.target.value) || 0 })}
+                      className="w-full p-2 bg-white dark:bg-gray-700 border border-indigo-100 dark:border-indigo-800 rounded-lg text-sm text-center"
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-[10px] font-bold text-indigo-400 uppercase mb-1">Unit Cost</label>
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      value={newManualItem.price || ''}
+                      onChange={(e) => setNewManualItem({ ...newManualItem, price: parseFloat(e.target.value) || 0 })}
+                      className="w-full p-2 bg-white dark:bg-gray-700 border border-indigo-100 dark:border-indigo-800 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="md:col-span-1">
+                    <button
+                      onClick={handleAddManualItem}
+                      className="w-full p-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm flex items-center justify-center"
+                      title="Add Item"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Items List - Table Layout */}
             <div className="flex-1 overflow-auto p-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
@@ -534,66 +729,126 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 </div>
               ) : priceListStep === 1 ? (
                 /* STEP 1: SELECT ITEMS */
-                filteredItems.length > 0 ? (
-                  <div className="min-w-full inline-block align-middle">
-                    <div className="border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden">
-                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-900/50">
-                          <tr>
-                            <th scope="col" className="w-10 px-4 py-3"></th>
-                            <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
-                            <th scope="col" className="px-4 py-3 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unit</th>
-                            <th scope="col" className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
-                          {filteredItems.map((item) => (
-                            <tr
-                              key={item.id}
-                              className={`hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors group cursor-pointer ${selectedItemIds.has(item.id) ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : ''}`}
-                              onClick={() => {
-                                const newSelection = new Set(selectedItemIds);
-                                if (newSelection.has(item.id)) newSelection.delete(item.id);
-                                else newSelection.add(item.id);
-                                setSelectedItemIds(newSelection);
-                              }}
-                            >
-                              <td className="px-4 py-3 text-center">
+                <div className="space-y-4">
+                  {/* Manual Entries List in Selection Step */}
+                  {manualEntries.length > 0 && (
+                    <div className="border border-indigo-100 dark:border-indigo-900/30 rounded-xl overflow-hidden shadow-sm">
+                      <div className="px-4 py-2 bg-indigo-50/50 dark:bg-indigo-900/20 border-b border-indigo-100 dark:border-indigo-900/30 flex justify-between items-center">
+                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Manual Entries (Session Only)</span>
+                      </div>
+                      <table className="min-w-full divide-y divide-gray-100 dark:divide-gray-700">
+                        <tbody className="bg-white dark:bg-gray-800">
+                          {manualEntries.map((entry, idx) => (
+                            <tr key={`manual-${idx}`} className="group hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                              <td className="px-2 py-2">
                                 <input
-                                  type="checkbox"
-                                  checked={selectedItemIds.has(item.id)}
-                                  onChange={() => { }} // Handled by tr click
-                                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                  type="text"
+                                  value={entry.description}
+                                  onChange={(e) => updateManualEntry(idx, 'description', e.target.value)}
+                                  className="w-full p-1.5 text-sm bg-transparent border-b border-transparent hover:border-indigo-200 focus:border-indigo-500 outline-none dark:text-white"
                                 />
                               </td>
-                              <td className="px-4 py-3 whitespace-normal">
-                                <span className="text-sm font-medium text-gray-900 dark:text-white">{item.description}</span>
-                                {item.budget_object && (
-                                  <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-                                    <Tag className="w-2.5 h-2.5" /> {item.budget_object}
-                                  </div>
-                                )}
+                              <td className="px-2 py-2 w-20">
+                                <input
+                                  type="text"
+                                  value={entry.unit}
+                                  onChange={(e) => updateManualEntry(idx, 'unit', e.target.value)}
+                                  className="w-full p-1.5 text-xs text-center bg-transparent border-b border-transparent hover:border-indigo-200 focus:border-indigo-500 outline-none uppercase text-gray-500 dark:text-gray-400"
+                                />
                               </td>
-                              <td className="px-4 py-3 text-center">
-                                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase">{item.unit || '—'}</span>
+                              <td className="px-2 py-2 w-20">
+                                <input
+                                  type="number"
+                                  value={entry.quantity}
+                                  onChange={(e) => updateManualEntry(idx, 'quantity', parseInt(e.target.value) || 0)}
+                                  className="w-full p-1.5 text-sm text-center bg-transparent border-b border-transparent hover:border-indigo-200 focus:border-indigo-500 outline-none font-bold"
+                                />
                               </td>
-                              <td className="px-4 py-3 text-right">
-                                <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
-                                  {item.price ? `₱${item.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '—'}
-                                </span>
+                              <td className="px-2 py-2 w-32">
+                                <input
+                                  type="number"
+                                  value={entry.price}
+                                  onChange={(e) => updateManualEntry(idx, 'price', parseFloat(e.target.value) || 0)}
+                                  className="w-full p-1.5 text-sm text-right bg-transparent border-b border-transparent hover:border-indigo-200 focus:border-indigo-500 outline-none font-bold text-indigo-600 dark:text-indigo-400"
+                                />
+                              </td>
+                              <td className="px-2 py-2 w-10 text-right">
+                                <button
+                                  onClick={() => removeManualEntry(idx)}
+                                  className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Remove"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-20 opacity-40">
-                    <Database className="w-16 h-16 text-gray-300 mb-4" />
-                    <p className="text-gray-500 font-medium">No items found matching "{searchQuery}"</p>
-                  </div>
-                )
+                  )}
+
+                  {filteredItems.length > 0 ? (
+                    <div className="min-w-full inline-block align-middle">
+                      <div className="border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                          <thead className="bg-gray-50 dark:bg-gray-900/50">
+                            <tr>
+                              <th scope="col" className="w-10 px-4 py-3"></th>
+                              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                              <th scope="col" className="px-4 py-3 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unit</th>
+                              <th scope="col" className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
+                            {filteredItems.map((item) => (
+                              <tr
+                                key={item.id}
+                                className={`hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors group cursor-pointer ${selectedItemIds.has(item.id) ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : ''}`}
+                                onClick={() => {
+                                  const newSelection = new Set(selectedItemIds);
+                                  if (newSelection.has(item.id)) newSelection.delete(item.id);
+                                  else newSelection.add(item.id);
+                                  setSelectedItemIds(newSelection);
+                                }}
+                              >
+                                <td className="px-4 py-3 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedItemIds.has(item.id)}
+                                    onChange={() => { }} // Handled by tr click
+                                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                  />
+                                </td>
+                                <td className="px-4 py-3 whitespace-normal">
+                                  <span className="text-sm font-medium text-gray-900 dark:text-white">{item.description}</span>
+                                  {item.budget_object && (
+                                    <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+                                      <Tag className="w-2.5 h-2.5" /> {item.budget_object}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase">{item.unit || '—'}</span>
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+                                    {item.price ? `₱${item.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '—'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                      <Database className="w-16 h-16 text-gray-300 mb-4" />
+                      <p className="text-gray-500 font-medium">No items found matching "{searchQuery}"</p>
+                    </div>
+                  )}
+                </div>
               ) : (
                 /* STEP 2: QUANTITIES */
                 <div className="space-y-4">
@@ -638,10 +893,12 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                         <tr>
                           <td colSpan={3} className="px-4 py-4 text-sm font-bold text-gray-900 dark:text-white text-right uppercase">Estimated Grand Total</td>
                           <td className="px-4 py-4 text-lg font-black text-indigo-700 dark:text-indigo-300 text-right">
-                            ₱{priceListItems
-                              .filter(item => selectedItemIds.has(item.id))
-                              .reduce((sum, item) => sum + ((itemQuantities[item.id] || 0) * (item.price || 0)), 0)
-                              .toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            ₱{(
+                              priceListItems
+                                .filter(item => selectedItemIds.has(item.id))
+                                .reduce((sum, item) => sum + ((itemQuantities[item.id] || 0) * (item.price || 0)), 0) +
+                              manualEntries.reduce((sum, entry) => sum + (entry.quantity * entry.price), 0)
+                            ).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </td>
                         </tr>
                       </tfoot>
@@ -685,7 +942,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                   </button>
                 ) : (
                   <button
-                    disabled={Object.values(itemQuantities).every(q => (q as number) <= 0)}
+                    disabled={(selectedItemIds.size > 0 && Object.values(itemQuantities).every(q => (q as number) <= 0)) && manualEntries.length === 0}
                     onClick={handleInsertPriceTable}
                     className="px-8 py-2.5 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 active:scale-95 transition-all shadow-lg shadow-green-200 dark:shadow-green-950/20 flex items-center gap-2"
                   >
