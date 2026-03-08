@@ -322,15 +322,45 @@ export const generateEmbedding = (text: string) => geminiService.generateEmbeddi
 export const generateDocument = (type: DocumentType, formData: Record<string, any>, userDepartment?: string) => geminiService.generateDocument(type, formData, userDepartment);
 export const generateDatasetContext = (content: string) => geminiService.generateDatasetContext(content);
 
-const documentTool: FunctionDeclaration = {
-    name: 'submit_document_details',
-    description: 'Submits the gathered document details to the application. Call this ONLY when all necessary details have been collected.',
+const activityProposalTool: FunctionDeclaration = {
+    name: 'submit_activity_proposal',
+    description: 'Submits gathered details for an Activity Proposal. Call this ONLY when all necessary details have been collected.',
     parameters: {
         type: Type.OBJECT,
         properties: {
             gatheredData: {
                 type: Type.OBJECT,
-                description: 'A flat JSON object containing the gathered form fields as key-value pairs. Use concise, descriptive keys (e.g., {"title": "...", "venue": "..."}).',
+                description: 'A JSON object with keys: "orgName", "title", "venue", "date", "objectives", "budget", "source", "signatories" (array of {name, position}).',
+            },
+        },
+        required: ['gatheredData'],
+    },
+};
+
+const officialLetterTool: FunctionDeclaration = {
+    name: 'submit_official_letter',
+    description: 'Submits gathered details for an Official Letter. Call this ONLY when all necessary details have been collected.',
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            gatheredData: {
+                type: Type.OBJECT,
+                description: 'A JSON object with keys: "senderName", "senderPosition", "recipientName", "thru", "subject", "details", "signatories" (array of {name, position}).',
+            },
+        },
+        required: ['gatheredData'],
+    },
+};
+
+const constitutionTool: FunctionDeclaration = {
+    name: 'submit_constitution',
+    description: 'Submits gathered details for a Constitution & By-Laws document. Call this ONLY when all necessary details have been collected.',
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            gatheredData: {
+                type: Type.OBJECT,
+                description: 'A JSON object with keys: "topic", "whereas", "resolved", "signatories" (array of {name, position}).',
             },
         },
         required: ['gatheredData'],
@@ -351,8 +381,10 @@ export class LiveSession {
     private nextStartTime = 0;
     private audioSourceNodes = new Set<AudioBufferSourceNode>();
     private onDocumentGenerated: (gatheredData: Record<string, any>) => void;
+    private onProcessing?: () => void;
     private department?: string;
     private documentType?: DocumentType;
+    private initialData?: Record<string, any>;
 
     // VAD (Voice Activity Detection) State
     private isSpeaking = false;
@@ -376,10 +408,18 @@ export class LiveSession {
         }, 1500); // Give 1.5s grace period for trailing chunks
     }
 
-    constructor(onDocumentGenerated: (gatheredData: Record<string, any>) => void, department?: string, documentType?: DocumentType) {
+    constructor(
+        onDocumentGenerated: (gatheredData: Record<string, any>) => void,
+        department?: string,
+        documentType?: DocumentType,
+        onProcessing?: () => void,
+        initialData?: Record<string, any>
+    ) {
         this.onDocumentGenerated = onDocumentGenerated;
         this.department = department;
         this.documentType = documentType;
+        this.onProcessing = onProcessing;
+        this.initialData = initialData;
     }
 
     async connect() {
@@ -477,18 +517,54 @@ ${tmplData[0].content}
 5. Key details to include in the body
 6. Signatories (Names and Positions of people who will sign the letter)`;
             expectedKeys = `JSON keys to use: "senderName", "senderPosition", "recipientName", "thru", "subject", "details", "signatories" (array of {name, position})`;
+        } else if (this.documentType === DocumentType.CONSTITUTION) {
+            requiredFields = `
+1. Topic (What is the constitution/resolution about?)
+2. Whereas Clauses (The background or justification)
+3. Resolved Clauses (The specific actions or rules)
+4. Signatories (Names and Positions of people who will sign)`;
+            expectedKeys = `JSON keys to use: "topic", "whereas", "resolved", "signatories" (array of {name, position})`;
+        }
+
+        // Select the tool based on document type
+        let selectedTool = activityProposalTool; // Default
+        if (this.documentType === DocumentType.OFFICIAL_LETTER) selectedTool = officialLetterTool;
+        else if (this.documentType === DocumentType.CONSTITUTION) selectedTool = constitutionTool;
+
+        // Process initial data to tell the AI what we already know
+        let knownInfoStr = "No initial information provided.";
+        if (this.initialData) {
+            const usefulFields = Object.entries(this.initialData)
+                .filter(([_, v]) => v && v.toString().trim() !== "" && (typeof v !== 'object' || (Array.isArray(v) && v.length > 0)))
+                .map(([k, v]) => `- ${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`);
+            if (usefulFields.length > 0) {
+                knownInfoStr = usefulFields.join("\n");
+            }
         }
 
         const systemInstructionText = `You are the Voice Agent for NEMSU SmartDraft (Identity: Gemini Pulse). 
 You help academic users draft formal documents (like ${this.documentType || 'general documents'}).
 
-CRITICAL INITIALIZATION: YOU MUST SPEAK FIRST. Greet the user and identify the document they are trying to create.
+LANGUAGE CONSTRAINTS:
+- You must UNDERSTAND and ACCEPT input in Tagalog, Bisaya, and English.
+- You must ALWAYS RESPOND in English only.
+
+ALREADY KNOWN INFORMATION (DO NOT ASK FOR THESE UNLESS THE USER WANTS TO CHANGE THEM):
+${knownInfoStr}
+
+PRECISION MANDATE:
+1. DO NOT invent details.
+2. DO NOT make random decisions for the user.
+3. If a required field is not in "ALREADY KNOWN INFORMATION" and the user hasn't provided it yet, you MUST ASK.
+4. If the user provides a fact, follow it STRICTLY.
 
 YOUR MISSION:
 You are a conversational data gatherer. Your job is to extract the following information interactively from the user, one or two questions at a time:
 ${requiredFields}
 
-Once you have gathered all details, say "Great, I have all the details. Generating your document now." and IMMEDIATELY call the 'submit_document_details' tool.
+CRITICAL INITIALIZATION: YOU MUST SPEAK FIRST. Greet the user and identify the document they are trying to create.
+
+Once you have gathered all details, say "Great, I have all the details. Generating your document now." and IMMEDIATELY call the '${selectedTool.name}' tool.
 
 TOOL INSTRUCTIONS:
 Pass the gathered information into the 'gatheredData' parameter as a JSON object.
@@ -503,10 +579,19 @@ Do NOT generate the document content yourself. Just pass the raw facts into the 
         const config = {
             model: 'gemini-2.5-flash-native-audio-preview-09-2025',
             callbacks: {
-                onopen: () => console.log("WebSocket Connection opened"),
+                onopen: () => {
+                    this.isConnected = true;
+                    console.log("WebSocket Connection opened");
+                },
                 onmessage: this.onMessage.bind(this),
-                onclose: () => console.log('WebSocket Session closed'),
-                onerror: (e: any) => console.error('WebSocket Session error', e),
+                onclose: () => {
+                    this.isConnected = false;
+                    console.log('WebSocket Session closed');
+                },
+                onerror: (e: any) => {
+                    this.isConnected = false;
+                    console.error('WebSocket Session error', e);
+                },
             },
             config: {
                 generationConfig: {
@@ -518,7 +603,7 @@ Do NOT generate the document content yourself. Just pass the raw facts into the 
                 systemInstruction: {
                     parts: [{ text: systemInstructionText }],
                 },
-                tools: [{ functionDeclarations: [documentTool] }],
+                tools: [{ functionDeclarations: [selectedTool] }],
             },
         };
 
@@ -599,9 +684,14 @@ Do NOT generate the document content yourself. Just pass the raw facts into the 
                 this.sessionPromise.then((session: any) => {
                     if (!this.isConnected) return;
                     try {
-                        session.sendRealtimeInput({ media: pcmBlob });
+                        // Check if session and websocket are actually open
+                        if (session?.ws?.readyState === 1 || (session && !session.ws)) {
+                            session.sendRealtimeInput({ media: pcmBlob });
+                        } else {
+                            this.isConnected = false;
+                        }
                     } catch (err) {
-                        // Ignore transient send errors globally during disconnect
+                        this.isConnected = false;
                     }
                 }).catch(() => { });
             }
@@ -625,13 +715,21 @@ Do NOT generate the document content yourself. Just pass the raw facts into the 
         const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
         if (audioData) {
             await this.playAudio(audioData);
+            // RESET the finalization timer because AI is still speaking/sending audio
+            if (this.pendingToolData) {
+                this.triggerFinalization();
+            }
         }
 
         const toolCall = message.toolCall;
         if (toolCall) {
             for (const call of toolCall.functionCalls) {
-                if (call.name === 'submit_document_details') {
-                    console.log("Tool invoked: submit_document_details", call.args);
+                if (['submit_activity_proposal', 'submit_official_letter', 'submit_constitution'].includes(call.name)) {
+                    console.log(`Tool invoked: ${call.name} `, call.args);
+
+                    // Immediate feedback to UI
+                    if (this.onProcessing) this.onProcessing();
+
                     const gatheredData = (call.args as any).gatheredData;
 
                     // Respond to tool call FIRST to prevent blocking / closed socket errors
@@ -738,6 +836,10 @@ Do NOT generate the document content yourself. Just pass the raw facts into the 
     disconnect() {
         console.log("LiveSession: Disconnecting...");
         this.isConnected = false;
+        if (this.finalizeTimeout) {
+            clearTimeout(this.finalizeTimeout);
+            this.finalizeTimeout = null;
+        }
 
         if (this.sessionPromise) {
             this.sessionPromise.then((session: any) => {

@@ -431,7 +431,11 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
         }
         setIsLiveActive(false);
         handleGenerate(gatheredData);
-      }, user.department, docType);
+      }, user.department, docType, () => {
+        // onProcessing callback
+        setLoading(true);
+        setResult(""); // Clear previous result to force loading view
+      }, formData);
       liveSessionRef.current = session;
       try {
         await session.connect();
@@ -473,7 +477,6 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
               <button
                 onClick={() => {
                   setInputMode('chat');
-                  if (docType !== DocumentType.ACTIVITY_PROPOSAL) setDocType(DocumentType.ACTIVITY_PROPOSAL);
                 }}
                 className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition ${inputMode === 'chat' ? 'bg-white dark:bg-gray-600 shadow text-blue-700 dark:text-blue-300' : 'text-gray-500'}`}
               >
@@ -707,6 +710,54 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
                   </div>
                 </>
               )}
+              {docType === DocumentType.CONSTITUTION && (
+                <>
+                  <input name="topic" value={formData.topic} placeholder="Constitution/Resolution Topic" onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                  <textarea name="whereas" value={formData.whereas} placeholder="Whereas clauses (one per line)..." onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 h-32" />
+                  <textarea name="resolved" value={formData.resolved} placeholder="Resolved clauses (one per line)..." onChange={handleChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 h-32" />
+
+                  {/* Signatories Section for Constitution */}
+                  <div className="space-y-3 p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-bold flex items-center gap-2">
+                        <UserPlus className="w-4 h-4 text-blue-500" /> Signatories
+                      </h4>
+                      <button
+                        onClick={addSignatory}
+                        className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md transition-all"
+                      >
+                        <Plus className="w-3 h-3" /> Add Signatory
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {formData.signatories.map((sig: any, index: number) => (
+                        <div key={index} className="flex flex-col gap-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-600 shadow-sm relative group/sig">
+                          <input
+                            placeholder="Name"
+                            value={sig.name}
+                            onChange={(e) => handleSignatoryChange(index, 'name', e.target.value)}
+                            className="text-sm w-full p-2 border-b dark:border-gray-600 focus:border-blue-500 outline-none bg-transparent"
+                          />
+                          <input
+                            placeholder="Position"
+                            value={sig.position}
+                            onChange={(e) => handleSignatoryChange(index, 'position', e.target.value)}
+                            className="text-sm w-full p-2 bg-transparent outline-none italic text-gray-500"
+                          />
+                          {formData.signatories.length > 1 && (
+                            <button
+                              onClick={() => removeSignatory(index)}
+                              className="absolute top-2 right-2 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-all opacity-0 group-hover/sig:opacity-100"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
               <button onClick={() => handleGenerate()} disabled={loading} className="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white py-3 rounded-lg font-bold hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-50">
                 {loading ? <><Bot className="w-5 h-5 animate-spin" /> Generating...</> : <><Bot className="w-5 h-5" /> Generate Document</>}
               </button>
@@ -739,7 +790,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
       </div>
 
       <div className="flex-1 h-[60vh] lg:h-full flex flex-col min-w-0">
-        {loading && !result ? (
+        {loading ? (
           <div className="h-full bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400">
             <Bot className="w-16 h-16 mb-4 text-blue-500 animate-bounce" />
             <p className="text-lg font-medium text-gray-600 dark:text-gray-300">Drafting your document...</p>
