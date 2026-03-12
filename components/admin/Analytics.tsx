@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
-import { 
-  Users, 
-  FileText, 
-  Activity, 
-  TrendingUp, 
-  Clock, 
-  BarChart3, 
+import {
+  Users,
+  FileText,
+  Activity,
+  TrendingUp,
+  Clock,
+  BarChart3,
   PieChart as PieChartIcon,
   Shield,
   ArrowUpRight,
@@ -51,7 +51,6 @@ export const Analytics: React.FC<AnalyticsProps> = ({ type, department }) => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'documents' },
         () => {
-          console.log('--- Real-time Update: Document Change Detected ---');
           fetchAnalyticsData();
         }
       )
@@ -92,8 +91,6 @@ export const Analytics: React.FC<AnalyticsProps> = ({ type, department }) => {
             email
           )
         `);
-      console.log('--- DEBUG: Platform Users & Roles ---');
-      console.log(debugRoles);
 
       const mainStats: StatItem[] = [
         {
@@ -135,7 +132,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ type, department }) => {
         breakdownQuery = breakdownQuery.eq('department', department);
       }
       const { data: breakdownData } = await breakdownQuery;
-      
+
       const counts: Record<string, number> = {};
       breakdownData?.forEach(d => {
         counts[d.type] = (counts[d.type] || 0) + 1;
@@ -147,11 +144,11 @@ export const Analytics: React.FC<AnalyticsProps> = ({ type, department }) => {
       const now = new Date();
       const currentDay = now.getDay(); // 0 is Sun, 1 is Mon
       const diff = currentDay === 0 ? 6 : currentDay - 1; // Days since Monday
-      
+
       const monday = new Date(now);
       monday.setHours(0, 0, 0, 0);
       monday.setDate(now.getDate() - diff);
-      
+
       let historyQuery = supabase
         .from('documents')
         .select('created_at')
@@ -162,10 +159,10 @@ export const Analytics: React.FC<AnalyticsProps> = ({ type, department }) => {
       }
 
       const { data: historyData } = await historyQuery;
-      
+
       const dayNames = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
       const weekData: any[] = [];
-      
+
       // Initialize week from Monday to Sunday
       for (let i = 0; i < 7; i++) {
         const d = new Date(monday);
@@ -185,8 +182,6 @@ export const Analytics: React.FC<AnalyticsProps> = ({ type, department }) => {
         }
       });
 
-      console.log('--- DEBUG: Weekly Activity Data (Mon-Sun) ---');
-      console.log(weekData);
       setActivityData(weekData);
 
       // 4. Fetch Top Contributors (Real Data with Counts)
@@ -203,7 +198,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ type, department }) => {
       }
 
       const { data: activeRoles } = await contribQuery;
-      
+
       // Fetch doc counts for these specific users
       if (activeRoles && activeRoles.length > 0) {
         const userIds = activeRoles.map(r => r.profiles.id);
@@ -234,7 +229,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ type, department }) => {
 
   const [contributors, setContributors] = useState<any[]>([]);
 
-  const filteredContributors = contributors.filter(c => 
+  const filteredContributors = contributors.filter(c =>
     c.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.profiles?.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -258,8 +253,8 @@ export const Analytics: React.FC<AnalyticsProps> = ({ type, department }) => {
           <div key={stat.id} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-300 group">
             <div className="flex justify-between items-start mb-4">
               <div className={`p-3 rounded-xl ${stat.bg} ${stat.color} dark:bg-opacity-10 group-hover:scale-110 transition-transform`}>
-              <stat.icon className="w-6 h-6" />
-            </div>
+                <stat.icon className="w-6 h-6" />
+              </div>
             </div>
             <div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</h3>
@@ -268,7 +263,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ type, department }) => {
           </div>
         ))}
       </div>
-       {/* Activity Chart & Pie Chart */}
+      {/* Activity Chart & Pie Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Weekly Activity */}
         <div className="bg-white dark:bg-gray-800 p-4 md:p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
@@ -279,16 +274,16 @@ export const Analytics: React.FC<AnalyticsProps> = ({ type, department }) => {
             </div>
             <Clock className="w-5 h-5 text-gray-400" />
           </div>
-          
+
           <div className="h-64 flex items-end justify-between gap-1 md:gap-3 pt-4">
             {activityData.map((data, i) => {
               const maxVal = Math.max(...activityData.map(d => d.count), 5);
               const heightPercentage = Math.max((data.count / maxVal) * 100, data.count > 0 ? 10 : 2);
-              
+
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-2 group h-full">
                   <div className="relative w-full flex-1 flex items-end justify-center">
-                    <div 
+                    <div
                       className={`w-full max-w-[32px] bg-blue-500 hover:bg-blue-400 rounded-t-lg transition-all duration-300 ease-out cursor-pointer relative group/bar shadow-[0_-4px_12px_rgba(59,130,246,0.3)] ${data.count > 0 ? 'opacity-100' : 'opacity-10'}`}
                       style={{ height: `${heightPercentage}%` }}
                     >
@@ -325,13 +320,13 @@ export const Analytics: React.FC<AnalyticsProps> = ({ type, department }) => {
                     const total = docTypeBreakdown.reduce((sum, item) => sum + item.value, 0);
                     let currentOffset = 0;
                     const colors = ['#3B82F6', '#818CF8', '#C084FC'];
-                    
+
                     return docTypeBreakdown.map((item, idx) => {
                       const percentage = (item.value / (total || 1)) * 100;
                       const strokeDasharray = `${percentage} 100`;
                       const strokeDashoffset = -currentOffset;
                       currentOffset += percentage;
-                      
+
                       return (
                         <circle
                           key={idx}
@@ -389,11 +384,11 @@ export const Analytics: React.FC<AnalyticsProps> = ({ type, department }) => {
             </h3>
             <p className="text-sm text-gray-500">Efficiency tracking for the current term</p>
           </div>
-          
+
           <div className="flex items-center gap-3 w-full md:w-auto">
             <div className="relative flex-1 md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input 
+              <input
                 type="text"
                 placeholder="Search by name or email..."
                 value={searchQuery}
@@ -419,26 +414,25 @@ export const Analytics: React.FC<AnalyticsProps> = ({ type, department }) => {
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {filteredContributors.map((c, i) => (
                 <tr key={c.id} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition group">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center font-bold text-xs">
-                      {c.profiles?.full_name?.substring(0, 2).toUpperCase() || '??'}
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center font-bold text-xs">
+                        {c.profiles?.full_name?.substring(0, 2).toUpperCase() || '??'}
+                      </div>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {c.profiles?.full_name || 'Unknown'}
+                      </span>
                     </div>
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {c.profiles?.full_name || 'Unknown'}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${c.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
+                      }`}>
+                      {c.status || 'Offline'}
                     </span>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    c.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
-                  }`}>
-                    {c.status || 'Offline'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 font-bold text-sm">{c.doc_count}</td>
-                <td className="px-6 py-4 text-xs text-gray-500">{new Date(c.updated_at).toLocaleDateString()}</td>
-              </tr>
+                  </td>
+                  <td className="px-6 py-4 font-bold text-sm">{c.doc_count}</td>
+                  <td className="px-6 py-4 text-xs text-gray-500">{new Date(c.updated_at).toLocaleDateString()}</td>
+                </tr>
               ))}
               {contributors.length === 0 && (
                 <tr>
