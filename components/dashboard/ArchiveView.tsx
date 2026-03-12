@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, GeneratedDocument, Department, UserRole } from '../../types';
 import { supabase } from '../../services/supabaseClient';
-import { Archive, Copy, FileText, Search, Filter, Loader, Calendar } from 'lucide-react';
+import { Database, Copy, FileText, Search, Filter, Loader, Calendar } from 'lucide-react';
 
 interface ArchiveViewProps {
     user: User;
@@ -115,7 +115,7 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({ user, onUseReference }
     return (
         <div className="p-8">
             <header className="mb-8">
-                <h1 className="text-3xl font-serif italic text-blue-900 dark:text-blue-400 mb-2">Document Archives</h1>
+                <h1 className="text-3xl font-serif italic text-blue-900 dark:text-blue-400 mb-2">Knowledge Base</h1>
                 <p className="text-gray-600 dark:text-gray-300">Browse and reference documents from previous academic years.</p>
             </header>
 
@@ -126,7 +126,7 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({ user, onUseReference }
                     <Search className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
                     <input
                         type="text"
-                        placeholder="Search archives by title, type, or author..."
+                        placeholder="Search knowledge base by title, type, or author..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-blue-500"
@@ -156,7 +156,7 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({ user, onUseReference }
                         onChange={(e) => setSelectedYear(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none appearance-none bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                     >
-                        {years.length === 0 && <option>No Archives Found</option>}
+                        {years.length === 0 && <option>No Records Found</option>}
                         {years.map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
                 </div>
@@ -168,7 +168,7 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({ user, onUseReference }
                 </div>
             ) : filteredDocs.length === 0 ? (
                 <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300 dark:bg-gray-800/50 dark:border-gray-700">
-                    <Archive className="w-12 h-12 text-gray-300 mx-auto mb-3 dark:text-gray-600" />
+                    <Database className="w-12 h-12 text-gray-300 mx-auto mb-3 dark:text-gray-600" />
                     <p className="text-gray-500 dark:text-gray-400">No documents found for this year.</p>
                 </div>
             ) : (

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { User, SpecificRole, Department, DocumentType } from '../../types';
 import { supabase } from '../../services/supabaseClient';
-import { Users, FileText, Upload, Trash2, Check, X, Shield, Plus, LogOut, Settings, Database, Archive, Home, Loader, AlertCircle, Power } from 'lucide-react';
+import { Users, FileText, Upload, Trash2, Check, X, Shield, Plus, LogOut, Settings, Database, Archive, Home, Loader, AlertCircle, Power, BarChart3, Menu } from 'lucide-react';
 import { useNotification } from '../NotificationProvider';
 import { parseFile } from '../../services/fileUtils';
 import { generateDatasetContext, generateEmbedding } from '../../services/geminiService';
+import { Analytics } from './Analytics';
 
 
 interface GovernorDashboardProps {
@@ -21,7 +22,8 @@ const getApiKey = () => {
 
 export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNavigate, onLogout }) => {
     const { showToast, confirm: confirmAction } = useNotification();
-    const [activeTab, setActiveTab] = useState<'officers' | 'knowledge' | 'settings'>('officers');
+    const [activeTab, setActiveTab] = useState<'officers' | 'knowledge' | 'settings' | 'analytics'>('analytics');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [orgName, setOrgName] = useState('');
     const [isSavingOrg, setIsSavingOrg] = useState(false);
     const [officers, setOfficers] = useState<User[]>([]);
@@ -331,74 +333,124 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+        <div className="min-h-screen bg-white dark:bg-gray-900 flex">
+            {/* Mobile Header */}
+            {/* Mobile Header */}
+            <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white/95 dark:bg-gray-800/95 flex items-center px-4 z-20 text-gray-900 dark:text-white shadow-sm backdrop-blur-md border-b border-gray-100 dark:border-gray-700">
+                <button 
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition"
+                >
+                    <Menu className="w-6 h-6" />
+                </button>
+                <div className="flex-1 flex justify-center mr-10">
+                    <h1 className="text-xl font-serif italic text-blue-900 dark:text-white">SmartDraft</h1>
+                </div>
+            </div>
+
+            {/* Mobile Overlay */}
+            {isSidebarOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm animate-fade-in"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
-            <aside className="w-64 bg-blue-900 text-white flex flex-col fixed h-full z-10 dark:bg-gray-800 dark:border-r dark:border-gray-700">
-                <div className="p-6">
-                    <h1 className="text-2xl font-serif italic">SmartDraft</h1>
-                    <p className="text-blue-200 text-sm dark:text-gray-400">{user.department} Admin</p>
+            <aside className={`w-72 bg-gray-50 flex flex-col fixed h-full z-40 dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700 transition-transform duration-300 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center gap-4 h-16">
+                    <button 
+                        onClick={() => setIsSidebarOpen(false)}
+                        className="md:hidden p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition"
+                    >
+                        <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                    
+                    <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                        <h1 className="text-xl font-serif italic text-blue-950 dark:text-white whitespace-nowrap">SmartDraft</h1>
+                    </div>
                 </div>
 
-                <nav className="flex-1 px-4 space-y-2">
+                <nav className="flex-1 px-4 py-6 space-y-4 overflow-y-auto">
                     <button
-                        onClick={() => onNavigate('dashboard')}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition text-blue-200 hover:bg-white/5 mb-2 dark:text-gray-400 dark:hover:bg-gray-700"
+                        onClick={() => { onNavigate('dashboard'); setIsSidebarOpen(false); }}
+                        className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition bg-gray-50/50 text-gray-500 hover:bg-gray-100 dark:bg-gray-800/50 dark:text-gray-400 dark:hover:bg-gray-800 group"
                     >
-                        <Home className="w-5 h-5" />
-                        Back to Workspace
+                        <Home className="w-6 h-6 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                        <span className="font-bold text-lg">Home</span>
                     </button>
-                    <div className="h-px bg-blue-800 my-2 mx-4 dark:bg-gray-700"></div>
+
                     <button
-                        onClick={() => setActiveTab('officers')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'officers' ? 'bg-white/10 text-white dark:bg-gray-700' : 'text-blue-200 hover:bg-white/5 dark:text-gray-400 dark:hover:bg-gray-700'}`}
+                        onClick={() => { setActiveTab('analytics'); setIsSidebarOpen(false); }}
+                        className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-200 group ${activeTab === 'analytics'
+                            ? 'bg-blue-50 text-blue-600 shadow-sm'
+                            : 'bg-gray-50/50 text-gray-500 hover:bg-gray-100 dark:bg-gray-800/50 dark:text-gray-400 dark:hover:bg-gray-800'
+                            }`}
                     >
-                        <Users className="w-5 h-5" />
-                        Officers
+                        <BarChart3 className={`w-6 h-6 ${activeTab === 'analytics' ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'} transition-colors`} />
+                        <span className="font-bold text-lg">Analytics</span>
                     </button>
+
                     {user.specific_role !== 'University Official' && (
                         <button
-                            onClick={() => setActiveTab('knowledge')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'knowledge' ? 'bg-white/10 text-white dark:bg-gray-700' : 'text-blue-200 hover:bg-white/5 dark:text-gray-400 dark:hover:bg-gray-700'}`}
+                            onClick={() => { setActiveTab('knowledge'); setIsSidebarOpen(false); }}
+                            className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-200 group ${activeTab === 'knowledge'
+                                ? 'bg-blue-50 text-blue-600 shadow-sm'
+                                : 'bg-gray-50/50 text-gray-500 hover:bg-gray-100 dark:bg-gray-800/50 dark:text-gray-400 dark:hover:bg-gray-800'
+                                }`}
                         >
-                            <Database className="w-5 h-5" />
-                            Knowledge Base
+                            <Database className={`w-6 h-6 ${activeTab === 'knowledge' ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'} transition-colors`} />
+                            <span className="font-bold text-lg">Knowledge Base</span>
                         </button>
                     )}
+
                     <button
-                        onClick={() => setActiveTab('settings')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'settings' ? 'bg-white/10 text-white dark:bg-gray-700' : 'text-blue-200 hover:bg-white/5 dark:text-gray-400 dark:hover:bg-gray-700'}`}
+                        onClick={() => { setActiveTab('officers'); setIsSidebarOpen(false); }}
+                        className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-200 group ${activeTab === 'officers'
+                            ? 'bg-blue-50 text-blue-600 shadow-sm'
+                            : 'bg-gray-50/50 text-gray-500 hover:bg-gray-100 dark:bg-gray-800/50 dark:text-gray-400 dark:hover:bg-gray-800'
+                            }`}
                     >
-                        <Settings className="w-5 h-5" />
-                        Settings
+                        <Users className={`w-6 h-6 ${activeTab === 'officers' ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'} transition-colors`} />
+                        <span className="font-bold text-lg">Officers</span>
+                    </button>
+
+                    <button
+                        onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
+                        className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-200 group ${activeTab === 'settings'
+                            ? 'bg-blue-50 text-blue-600 shadow-sm'
+                            : 'bg-gray-50/50 text-gray-500 hover:bg-gray-100 dark:bg-gray-800/50 dark:text-gray-400 dark:hover:bg-gray-800'
+                            }`}
+                    >
+                        <Settings className={`w-6 h-6 ${activeTab === 'settings' ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'} transition-colors`} />
+                        <span className="font-bold text-lg">Settings</span>
                     </button>
                 </nav>
 
-                <div className="p-4 border-t border-blue-800 dark:border-gray-700">
-                    <div className="mb-4 px-4">
-                        <p className="text-sm font-bold">{user.full_name}</p>
-                        <p className="text-xs text-blue-300 dark:text-blue-400">{user.specific_role}</p>
-                    </div>
-                    <button onClick={onLogout} className="flex items-center gap-2 text-blue-200 hover:text-white transition w-full px-4 dark:text-gray-400 dark:hover:text-white">
-                        <LogOut className="w-4 h-4" /> Sign Out
+                <div className="p-6 border-t border-gray-100 dark:border-gray-700">
+                    <button onClick={onLogout} className="flex items-center gap-3 text-gray-400 hover:text-red-500 transition-colors w-full font-bold">
+                        <LogOut className="w-5 h-5" /> Sign Out
                     </button>
                 </div>
             </aside>
 
-            <main className="flex-1 ml-64 p-8">
+            {/* Main Content */}
+            <main className="flex-1 md:ml-72 min-h-screen bg-white dark:bg-gray-900 overflow-x-hidden">
+                <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-[1600px] mx-auto">
                 {activeTab === 'officers' && (
                     <div>
                         <h2 className="text-2xl font-bold text-gray-800 mb-6 dark:text-white">{user.department} Officers</h2>
 
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
                             {officers.map(officer => (
-                                <div key={officer.role_id} className="p-4 border-b border-gray-100 flex items-center justify-between last:border-0 hover:bg-gray-50 transition dark:border-gray-700 dark:hover:bg-gray-700">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center font-bold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                <div key={officer.role_id} className="p-4 border-b border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between last:border-0 hover:bg-gray-50 transition dark:border-gray-700 dark:hover:bg-gray-700 gap-4">
+                                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                                        <div className="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                                             {officer.full_name.charAt(0)}
                                         </div>
-                                        <div>
-                                            <h4 className="font-bold text-gray-900 dark:text-white">{officer.full_name}</h4>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">{officer.email}</p>
+                                        <div className="overflow-hidden">
+                                            <h4 className="font-bold text-gray-900 dark:text-white truncate">{officer.full_name}</h4>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{officer.email}</p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className={`text-xs px-2 py-0.5 rounded-full ${officer.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'}`}>
                                                     {officer.status}
@@ -407,25 +459,27 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
                                             </div>
                                         </div>
                                     </div>
+                                    
+                                    <div className="w-full sm:w-auto flex justify-end">
+                                        {officer.status === 'pending' && (
+                                            <button
+                                                onClick={() => setSelectedOfficer(officer)}
+                                                className="px-4 py-2 bg-blue-900 text-white rounded-lg text-sm font-medium hover:bg-blue-800"
+                                            >
+                                                Review Request
+                                            </button>
+                                        )}
 
-                                    {officer.status === 'pending' && (
-                                        <button
-                                            onClick={() => setSelectedOfficer(officer)}
-                                            className="px-4 py-2 bg-blue-900 text-white rounded-lg text-sm font-medium hover:bg-blue-800"
-                                        >
-                                            Review Request
-                                        </button>
-                                    )}
-
-                                    {(officer.status === 'active' || officer.status === 'disabled') && (
-                                        <button
-                                            onClick={() => handleEditOfficer(officer)}
-                                            className={`p-2 transition ${officer.status === 'disabled' ? 'text-red-400 hover:text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
-                                            title={officer.status === 'disabled' ? "Re-enable & Edit" : "Edit Permissions"}
-                                        >
-                                            {officer.status === 'disabled' ? <Power className="w-5 h-5" /> : <Settings className="w-5 h-5" />}
-                                        </button>
-                                    )}
+                                        {(officer.status === 'active' || officer.status === 'disabled') && (
+                                            <button
+                                                onClick={() => handleEditOfficer(officer)}
+                                                className={`p-2 transition ${officer.status === 'disabled' ? 'text-red-400 hover:text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                title={officer.status === 'disabled' ? "Re-enable & Edit" : "Edit Permissions"}
+                                            >
+                                                {officer.status === 'disabled' ? <Power className="w-5 h-5" /> : <Settings className="w-5 h-5" />}
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                             {officers.length === 0 && <div className="p-8 text-center text-gray-500">No officers found.</div>}
@@ -437,9 +491,9 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
                     <div>
                         <h2 className="text-2xl font-bold text-gray-800 mb-6 dark:text-white">{user.department} Resources</h2>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            {/* Templates Section */}
-                            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
+                        <div className="hidden lg:grid grid-cols-2 gap-8">
+                            {/* Previous Desktop UI: Grouped Templates & Datasets */}
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
                                 <h3 className="font-bold text-lg mb-4 flex items-center gap-2 dark:text-white">
                                     <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" /> Templates
                                 </h3>
@@ -471,8 +525,7 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
                                 </div>
                             </div>
 
-                            {/* Datasets Section (Categorized) */}
-                            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="font-bold text-lg flex items-center gap-2 dark:text-white">
                                         <Database className="w-5 h-5 text-purple-600 dark:text-purple-400" /> Datasets
@@ -492,8 +545,8 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
                                         return (
                                             <div key={type} className="border border-gray-100 dark:border-gray-700 rounded-lg p-3">
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <h4 className="text-xs font-bold uppercase text-gray-400 dark:text-gray-500 tracking-wider">{type}</h4>
-                                                    <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full dark:text-gray-300">{typeDatasets.length} files</span>
+                                                    <h4 className="text-xs font-bold uppercase text-gray-400 dark:text-gray-500 tracking-wider text-[10px]">{type}</h4>
+                                                    <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full dark:text-gray-300 text-[10px]">{typeDatasets.length} files</span>
                                                 </div>
 
                                                 {typeDatasets.length === 0 ? (
@@ -504,9 +557,9 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
                                                             <div key={ds.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
                                                                 <div className="flex items-center gap-2 overflow-hidden">
                                                                     <FileText className="w-3 h-3 text-gray-400 dark:text-gray-400 flex-shrink-0" />
-                                                                    <span className="text-sm text-gray-700 truncate dark:text-gray-200" title={ds.description}>{ds.description}</span>
+                                                                    <span className="text-[11px] text-gray-700 truncate dark:text-gray-200 font-medium" title={ds.description}>{ds.description}</span>
                                                                 </div>
-                                                                <button onClick={() => handleDeleteDataset(ds.id)} className="text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400">
+                                                                <button onClick={() => handleDeleteDataset(ds.id)} className="text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 transition-colors">
                                                                     <Trash2 className="w-3 h-3" />
                                                                 </button>
                                                             </div>
@@ -519,8 +572,67 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
                                 </div>
                             </div>
                         </div>
+
+                        {/* Mobile Grid Layout */}
+                        <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {[DocumentType.ACTIVITY_PROPOSAL, DocumentType.OFFICIAL_LETTER, DocumentType.CONSTITUTION].map(type => {
+                                const exists = templates.find(t => t.document_type === type);
+                                return (
+                                    <div key={type} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className={`p-3 rounded-xl ${exists ? 'bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400' : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'}`}>
+                                                <FileText className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-gray-900 dark:text-white leading-tight">{type}</h3>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">Template</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center justify-between mt-6">
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ${exists ? 'bg-green-50 text-green-600 dark:bg-green-900/30' : 'bg-gray-50 text-gray-400 dark:bg-gray-700/50'}`}>
+                                                {exists ? 'Ready' : 'Missing'}
+                                            </span>
+                                            <button
+                                                onClick={() => openUploadModal('template', type)}
+                                                className="text-sm font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                                            >
+                                                {exists ? 'Replace' : 'Upload'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow flex flex-col justify-between">
+                                <div>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-3 rounded-xl bg-purple-100 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">
+                                                <Database className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-gray-900 dark:text-white leading-tight">Knowledge Base</h3>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">Reference Materials</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2">AI-powered knowledge base for smarter document drafts.</p>
+                                </div>
+                                <button
+                                    onClick={() => openUploadModal('dataset')}
+                                    className="w-full py-3 bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400 rounded-xl font-bold text-sm hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <Plus className="w-4 h-4" /> Add Dataset
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
+                {activeTab === 'analytics' && (
+                    <Analytics type="department" department={user.department} />
+                )}
+
                 {activeTab === 'settings' && (
                     <div className="max-w-2xl">
                         <h2 className="text-2xl font-bold text-gray-800 mb-6 dark:text-white">Department Settings</h2>
@@ -549,6 +661,7 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
                         </div>
                     </div>
                 )}
+                </div>
             </main>
 
             {/* Upload Modal for Templates AND Datasets */}

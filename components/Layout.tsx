@@ -11,7 +11,7 @@ import {
   Menu,
   X,
   Settings,
-  Archive
+  Database
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -98,8 +98,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
               : 'text-gray-500 dark:text-gray-300 hover:text-blue-600'
               }`}
           >
-            <Archive className="w-4 h-4" />
-            <span>Archives</span>
+            <Database className="w-4 h-4" />
+            <span>Knowledge Base</span>
           </button>
         </div>
 
@@ -197,8 +197,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, currentView, onN
               onClick={() => handleNavigate('archives')}
               className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700 text-lg font-medium text-gray-800 dark:text-white active:bg-blue-50"
             >
-              <Archive className="w-6 h-6 text-blue-600" />
-              Archives
+              <Database className="w-6 h-6 text-blue-600" />
+              Knowledge Base
             </button>
             <button
               onClick={() => handleNavigate('settings')}

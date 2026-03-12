@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { User, SpecificRole, Department, DocumentType } from '../../types';
 import { supabase } from '../../services/supabaseClient';
-import { UserCheck, Users, Power, LogOut, Loader, Check, X, ShieldAlert, School, Home, Database, FileText, Plus, Trash2, Upload, AlertCircle, Settings } from 'lucide-react';
+import { UserCheck, Users, Power, LogOut, Loader, Check, X, ShieldAlert, School, Home, Database, FileText, Plus, Trash2, Upload, AlertCircle, Settings, BarChart3, Menu } from 'lucide-react';
 import { useNotification } from '../NotificationProvider';
 import { parseFile } from '../../services/fileUtils';
 import { generateDatasetContext, generateEmbedding } from '../../services/geminiService';
+import { Analytics } from './Analytics';
 
 // Helper to get API Key for Embeddings
 const getApiKey = () => {
@@ -14,13 +15,14 @@ const getApiKey = () => {
 
 interface SuperAdminDashboardProps {
     user: User;
-    onNavigate: (view: string) => void;
+    onNavigate: (view: string, params?: any) => void;
     onLogout: () => void;
 }
 
 export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, onNavigate, onLogout }) => {
     const { showToast, confirm: confirmAction } = useNotification();
-    const [activeTab, setActiveTab] = useState<'requests' | 'governors' | 'knowledge' | 'settings'>('requests');
+    const [activeTab, setActiveTab] = useState<'requests' | 'governors' | 'knowledge' | 'settings' | 'analytics'>('analytics');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [orgName, setOrgName] = useState('');
     const [isSavingOrg, setIsSavingOrg] = useState(false);
     const [isImportingPriceList, setIsImportingPriceList] = useState(false);
@@ -474,68 +476,128 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, 
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+        <div className="min-h-screen bg-white dark:bg-gray-900 flex">
+            {/* Mobile Header */}
+            <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white/95 dark:bg-gray-800/95 flex items-center px-4 z-20 text-gray-900 dark:text-white shadow-sm backdrop-blur-md border-b border-gray-100 dark:border-gray-700">
+                <button 
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition"
+                >
+                    <Menu className="w-6 h-6" />
+                </button>
+                <div className="flex-1 flex justify-center mr-10">
+                    <h1 className="text-xl font-serif italic text-blue-900 dark:text-white">SmartDraft</h1>
+                </div>
+            </div>
+
+            {/* Mobile Overlay */}
+            {isSidebarOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm animate-fade-in"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
-            <aside className="w-64 bg-blue-900 text-white flex flex-col fixed h-full z-10 dark:bg-gray-800 dark:border-r dark:border-gray-700">
-                <div className="p-6">
-                    <h1 className="text-2xl font-serif italic">SmartDraft</h1>
-                    <p className="text-blue-200 text-sm dark:text-gray-400">Super Admin</p>
+            <aside className={`w-72 bg-gray-50 flex flex-col fixed h-full z-40 dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700 transition-transform duration-300 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center gap-4 h-16">
+                    <button 
+                        onClick={() => setIsSidebarOpen(false)}
+                        className="md:hidden p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition"
+                    >
+                        <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                    
+                    <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                        <h1 className="text-xl font-serif italic text-blue-950 dark:text-white whitespace-nowrap">SmartDraft</h1>
+                    </div>
                 </div>
 
-                <nav className="flex-1 px-4 space-y-2">
+                <nav className="flex-1 px-4 py-6 space-y-4 overflow-y-auto">
                     <button
-                        onClick={() => onNavigate('dashboard')}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition text-blue-200 hover:bg-white/5 mb-2 dark:text-gray-400 dark:hover:bg-gray-700"
+                        onClick={() => { onNavigate('dashboard'); setIsSidebarOpen(false); }}
+                        className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition bg-gray-50/50 text-gray-500 hover:bg-gray-100 dark:bg-gray-800/50 dark:text-gray-400 dark:hover:bg-gray-800 group"
                     >
-                        <Home className="w-5 h-5" />
-                        Back to Workspace
+                        <Home className="w-6 h-6 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                        <span className="font-bold text-lg">Home</span>
                     </button>
-                    <div className="h-px bg-blue-800 my-2 mx-4 dark:bg-gray-700"></div>
+
                     <button
-                        onClick={() => setActiveTab('requests')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'requests' ? 'bg-white/10 text-white dark:bg-gray-700' : 'text-blue-200 hover:bg-white/5 dark:text-gray-400 dark:hover:bg-gray-700'}`}
+                        onClick={() => { setActiveTab('analytics'); setIsSidebarOpen(false); }}
+                        className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-200 group ${activeTab === 'analytics'
+                            ? 'bg-blue-50 text-blue-600 shadow-sm'
+                            : 'bg-gray-50/50 text-gray-500 hover:bg-gray-100 dark:bg-gray-800/50 dark:text-gray-400 dark:hover:bg-gray-800'
+                            }`}
                     >
-                        <UserCheck className="w-5 h-5" />
-                        Staff Requests
-                        {pendingStaff.length > 0 && <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full ml-auto">{pendingStaff.length}</span>}
+                        <BarChart3 className={`w-6 h-6 ${activeTab === 'analytics' ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'} transition-colors`} />
+                        <span className="font-bold text-lg">Analytics</span>
                     </button>
+
                     <button
-                        onClick={() => setActiveTab('governors')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'governors' ? 'bg-white/10 text-white dark:bg-gray-700' : 'text-blue-200 hover:bg-white/5 dark:text-gray-400 dark:hover:bg-gray-700'}`}
+                        onClick={() => { setActiveTab('knowledge'); setIsSidebarOpen(false); }}
+                        className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-200 group ${activeTab === 'knowledge'
+                            ? 'bg-blue-50 text-blue-600 shadow-sm'
+                            : 'bg-gray-50/50 text-gray-500 hover:bg-gray-100 dark:bg-gray-800/50 dark:text-gray-400 dark:hover:bg-gray-800'
+                            }`}
                     >
-                        <Users className="w-5 h-5" />
-                        Active Governors
+                        <Database className={`w-6 h-6 ${activeTab === 'knowledge' ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'} transition-colors`} />
+                        <span className="font-bold text-lg">Knowledge Base</span>
                     </button>
+
                     <button
-                        onClick={() => setActiveTab('knowledge')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'knowledge' ? 'bg-white/10 text-white dark:bg-gray-700' : 'text-blue-200 hover:bg-white/5 dark:text-gray-400 dark:hover:bg-gray-700'}`}
+                        onClick={() => { setActiveTab('requests'); setIsSidebarOpen(false); }}
+                        className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-200 group ${activeTab === 'requests'
+                            ? 'bg-blue-50 text-blue-600 shadow-sm'
+                            : 'bg-gray-50/50 text-gray-500 hover:bg-gray-100 dark:bg-gray-800/50 dark:text-gray-400 dark:hover:bg-gray-800'
+                            }`}
                     >
-                        <Database className="w-5 h-5" />
-                        Knowledge Base
+                        <UserCheck className={`w-6 h-6 ${activeTab === 'requests' ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'} transition-colors`} />
+                        <span className="font-bold text-lg">Staff</span>
+                        {pendingStaff.length > 0 && (
+                            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto">
+                                {pendingStaff.length}
+                            </span>
+                        )}
                     </button>
+
                     <button
-                        onClick={() => setActiveTab('settings')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeTab === 'settings' ? 'bg-white/10 text-white dark:bg-gray-700' : 'text-blue-200 hover:bg-white/5 dark:text-gray-400 dark:hover:bg-gray-700'}`}
+                        onClick={() => { setActiveTab('governors'); setIsSidebarOpen(false); }}
+                        className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-200 group ${activeTab === 'governors'
+                            ? 'bg-blue-50 text-blue-600 shadow-sm'
+                            : 'bg-gray-50/50 text-gray-500 hover:bg-gray-100 dark:bg-gray-800/50 dark:text-gray-400 dark:hover:bg-gray-800'
+                            }`}
                     >
-                        <Settings className="w-5 h-5" />
-                        Settings
+                        <Users className={`w-6 h-6 ${activeTab === 'governors' ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'} transition-colors`} />
+                        <span className="font-bold text-lg">Governors</span>
+                    </button>
+
+                    <button
+                        onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
+                        className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-200 group ${activeTab === 'settings'
+                            ? 'bg-blue-50 text-blue-600 shadow-sm'
+                            : 'bg-gray-50/50 text-gray-500 hover:bg-gray-100 dark:bg-gray-800/50 dark:text-gray-400 dark:hover:bg-gray-800'
+                            }`}
+                    >
+                        <Settings className={`w-6 h-6 ${activeTab === 'settings' ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'} transition-colors`} />
+                        <span className="font-bold text-lg">Settings</span>
                     </button>
                 </nav>
 
-                <div className="p-4 border-t border-blue-800 dark:border-gray-700">
-                    <button onClick={onLogout} className="flex items-center gap-2 text-blue-200 hover:text-white transition w-full dark:text-gray-400 dark:hover:text-white">
-                        <LogOut className="w-4 h-4" /> Sign Out
+                <div className="p-6 border-t border-gray-100 dark:border-gray-700">
+                    <button onClick={onLogout} className="flex items-center gap-3 text-gray-400 hover:text-red-500 transition-colors w-full font-bold">
+                        <LogOut className="w-5 h-5" /> Sign Out
                     </button>
                 </div>
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 ml-64 p-8">
-                <header className="flex justify-between items-center mb-8">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
-                        {activeTab === 'requests' ? 'Pending Staff Approvals' : activeTab === 'governors' ? 'Active Governors & Staff' : 'System Administration Resources'}
-                    </h2>
-                </header>
+            <main className="flex-1 md:ml-72 min-h-screen bg-white dark:bg-gray-900 overflow-x-hidden">
+                <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-[1600px] mx-auto">
+                    <header className="flex justify-between items-center mb-10">
+                        <h2 className="text-3xl font-bold text-gray-950 dark:text-white tracking-tight">
+                            {activeTab === 'requests' ? 'Staff Requests' : activeTab === 'governors' ? 'Active Governors' : activeTab === 'knowledge' ? 'Knowledge Base' : activeTab === 'analytics' ? 'Dashboard' : 'Settings'}
+                        </h2>
+                    </header>
 
                 {loading ? (
                     <div className="flex items-center justify-center h-64">
@@ -553,9 +615,9 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, 
                                     </div>
                                 ) : (
                                     pendingStaff.map(user => (
-                                        <div key={user.role_id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between dark:bg-gray-800 dark:border-gray-700">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-900 font-bold uppercase dark:bg-blue-900/30 dark:text-blue-400">
+                                        <div key={user.role_id} className="bg-white p-6 rounded-xl shadow-md border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between dark:bg-gray-800 dark:border-gray-700 gap-4">
+                                            <div className="flex items-center gap-4 w-full sm:w-auto">
+                                                <div className="w-12 h-12 bg-blue-50 rounded-full flex-shrink-0 flex items-center justify-center text-blue-900 font-bold uppercase dark:bg-blue-900/30 dark:text-blue-400">
                                                     {user.full_name.charAt(0)}
                                                 </div>
                                                 <div>
@@ -564,7 +626,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, 
                                                     <p className="text-xs text-blue-600 font-medium mt-1 dark:text-blue-400">{user.specific_role}</p>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 w-full sm:w-auto justify-end">
                                                 <button
                                                     onClick={() => handleReject(user.role_id!)}
                                                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition dark:text-red-400 dark:hover:bg-red-900/20"
@@ -589,13 +651,13 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, 
                         {activeTab === 'governors' && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {activeGovernors.map(user => (
-                                    <div key={user.role_id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 relative group dark:bg-gray-800 dark:border-gray-700">
+                                    <div key={user.role_id} className="bg-white p-6 rounded-xl shadow-md border border-gray-200 relative group dark:bg-gray-800 dark:border-gray-700 flex flex-col items-center text-center">
                                         <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition flex gap-2">
                                             {user.status === 'disabled' ? (
                                                 <button
                                                     onClick={() => handleEnable(user.role_id!)}
                                                     disabled={actionLoading === user.role_id}
-                                                    className="text-green-600 hover:bg-green-50 p-2 rounded-lg text-xs font-bold flex items-center gap-1 dark:text-green-400 dark:hover:bg-green-900/20"
+                                                    className="bg-green-100 text-green-600 hover:bg-green-200 p-2 rounded-lg text-xs font-bold flex items-center gap-1 dark:bg-green-900/30 dark:text-green-400"
                                                 >
                                                     <Power className="w-4 h-4" /> Enable
                                                 </button>
@@ -603,24 +665,24 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, 
                                                 <button
                                                     onClick={() => handleEndTerm(user.role_id!)}
                                                     disabled={actionLoading === user.role_id}
-                                                    className="text-red-500 hover:bg-red-50 p-2 rounded-lg text-xs font-bold flex items-center gap-1 dark:text-red-400 dark:hover:bg-red-900/20"
+                                                    className="bg-red-100 text-red-600 hover:bg-red-200 p-2 rounded-lg text-xs font-bold flex items-center gap-1 dark:bg-red-900/30 dark:text-red-400"
                                                 >
                                                     <Power className="w-4 h-4" /> End Term
                                                 </button>
                                             )}
                                         </div>
-                                        <div className="flex flex-col items-center text-center">
-                                            <div className="w-16 h-16 bg-blue-100 text-blue-900 rounded-full flex items-center justify-center font-bold text-xl mb-4 dark:bg-blue-900/30 dark:text-blue-400">
-                                                {user.full_name.charAt(0)}
-                                            </div>
-                                            <h3 className="font-bold text-gray-900 text-lg dark:text-white">{user.specific_role}</h3>
-                                            <p className="text-gray-500 text-sm mb-4 dark:text-gray-400">{user.department} • {user.academic_year}</p>
-                                            <div className={`text-xs px-3 py-1 rounded-full border ${user.status === 'active'
-                                                ? 'bg-green-50 text-green-700 border-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
-                                                : 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800'
-                                                }`}>
-                                                {user.status === 'active' ? 'Active' : 'Disabled'}
-                                            </div>
+
+                                        <div className="w-16 h-16 bg-blue-100 text-blue-900 rounded-full flex items-center justify-center font-bold text-xl mb-4 dark:bg-blue-900/30 dark:text-blue-400">
+                                            {user.full_name.charAt(0)}
+                                        </div>
+                                        <h3 className="font-bold text-gray-900 text-lg dark:text-white">{user.full_name}</h3>
+                                        <p className="text-gray-500 text-sm mb-1 dark:text-gray-400">{user.email}</p>
+                                        <p className="text-blue-600 text-sm font-medium mb-4 dark:text-blue-400">{user.specific_role} • {user.department}</p>
+                                        <div className={`text-xs px-3 py-1 rounded-full border ${user.status === 'active'
+                                            ? 'bg-green-50 text-green-700 border-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
+                                            : 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800'
+                                            }`}>
+                                            {user.status === 'active' ? 'Active' : 'Disabled'}
                                         </div>
                                     </div>
                                 ))}
@@ -868,6 +930,10 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, 
                         </div>
                     </div>
                 )}
+                {activeTab === 'analytics' && (
+                    <Analytics type="global" />
+                )}
+
                 {activeTab === 'settings' && (
                     <div className="max-w-2xl">
                         <h2 className="text-2xl font-bold text-gray-800 mb-6 dark:text-white">System Settings</h2>
@@ -925,6 +991,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, 
                         </div>
                     </div>
                 )}
+                </div>
             </main>
         </div>
     );

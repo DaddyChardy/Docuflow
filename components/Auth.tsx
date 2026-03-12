@@ -96,7 +96,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, theme, toggleTheme }) => {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950 flex flex-col lg:flex-row transition-colors duration-500 overflow-hidden">
+    <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col lg:flex-row transition-colors duration-500 overflow-hidden">
       {/* Theme Toggle */}
       <button
         onClick={toggleTheme}
@@ -179,7 +179,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, theme, toggleTheme }) => {
       </div>
 
       {/* RIGHT SIDE: AUTH CARD */}
-      <div className="flex-1 bg-white dark:bg-gray-950 flex items-center justify-center p-8 relative">
+      <div className="flex-1 bg-white dark:bg-gray-900 flex items-center justify-center p-8 relative">
         <div className="max-w-md w-full animate-fade-up">
           <div className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-gray-800 flex flex-col items-center">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 text-center">
