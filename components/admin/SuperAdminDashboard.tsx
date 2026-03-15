@@ -323,25 +323,46 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, 
             const textContent = await parseFile(uploadFile);
 
             if (uploadCategory === 'template') {
+                // 1. Check for existing template to delete old storage file
+                const { data: existingTemplate } = await supabase
+                    .from('department_templates')
+                    .select('file_url')
+                    .eq('department', department)
+                    .eq('document_type', uploadType)
+                    .maybeSingle();
+
+                if (existingTemplate && existingTemplate.file_url) {
+                    try {
+                        const urlParts = existingTemplate.file_url.split('/templates/');
+                        if (urlParts.length > 1 && urlParts[1]) {
+                            const oldFilePath = decodeURIComponent(urlParts[1]);
+                            await supabase.storage.from('templates').remove([oldFilePath]);
+                        }
+                    } catch (e) {
+                        console.warn("Could not delete old template file:", e);
+                    }
+                }
+
                 // Upload Template (Storage + DB)
                 const fileExt = uploadFile.name.split('.').pop();
-                const sanitizedType = uploadType.replace(/\s+/g, '_');
-                const fileName = `${department}_${sanitizedType}.${fileExt}`;
+                const sanitizedType = uploadType.split(' ').join('_');
+                const timestamp = new Date().getTime();
+                const fileName = `${department}_${sanitizedType}_${timestamp}.${fileExt}`;
                 const filePath = `${department}/${fileName}`;
 
-                // 1. Upload to Storage
+                // 2. Upload to Storage
                 const { error: uploadError } = await supabase.storage
                     .from('templates')
                     .upload(filePath, uploadFile, { upsert: true });
 
                 if (uploadError) throw uploadError;
 
-                // 2. Get Public URL
+                // 3. Get Public URL
                 const { data: { publicUrl } } = supabase.storage
                     .from('templates')
                     .getPublicUrl(filePath);
 
-                // 3. Upsert DB Record
+                // 4. Upsert DB Record
                 const { error } = await supabase.from('department_templates').upsert({
                     department: department,
                     document_type: uploadType,
