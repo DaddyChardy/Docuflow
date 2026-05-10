@@ -643,7 +643,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   };
 
-  const { selectedFiltered, unselectedFiltered } = useMemo(() => {
+  const { selectedFiltered, allFiltered } = useMemo(() => {
     const items = searchQuery
       ? priceListItems.filter(item =>
         item.item_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -653,7 +653,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
     return {
       selectedFiltered: items.filter(item => selectedItemIds.has(item.id)),
-      unselectedFiltered: items.filter(item => !selectedItemIds.has(item.id))
+      allFiltered: items
     };
   }, [priceListItems, searchQuery, selectedItemIds]);
 
@@ -976,7 +976,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                     </div>
                   )}
 
-                  {selectedFiltered.length > 0 || unselectedFiltered.length > 0 ? (
+                  {selectedFiltered.length > 0 || allFiltered.length > 0 ? (
                     <div className="min-w-full inline-block align-middle">
                       <div className="border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -1030,7 +1030,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                                     </td>
                                   </tr>
                                 ))}
-                                {unselectedFiltered.length > 0 && (
+                                {allFiltered.length > 0 && (
                                   <tr className="bg-gray-50/50 dark:bg-gray-900/10">
                                     <td colSpan={4} className="px-4 py-1.5 border-t border-gray-100 dark:border-gray-800">
                                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Available Items</span>
@@ -1040,43 +1040,52 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                               </>
                             )}
 
-                            {/* Unselected / Search Results */}
-                            {unselectedFiltered.map((item) => (
-                              <tr
-                                key={item.id}
-                                className="hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors group cursor-pointer"
-                                onClick={() => {
-                                  const newSelection = new Set(selectedItemIds);
-                                  newSelection.add(item.id);
-                                  setSelectedItemIds(newSelection);
-                                }}
-                              >
-                                <td className="px-4 py-3 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={false}
-                                    onChange={() => { }}
-                                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                  />
-                                </td>
-                                <td className="px-4 py-3 whitespace-normal">
-                                  <span className="text-sm font-medium text-gray-900 dark:text-white">{item.item_name}</span>
-                                  {item.category && (
-                                    <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-                                      <Tag className="w-2.5 h-2.5" /> {item.category}
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase">{item.unit || '—'}</span>
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
-                                    {item.price ? `₱${item.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '—'}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
+                            {/* All Filtered Items (Selection List) */}
+                            {allFiltered.map((item) => {
+                              const isSelected = selectedItemIds.has(item.id);
+                              return (
+                                <tr
+                                  key={item.id}
+                                  className={`${isSelected ? 'bg-indigo-50/20 dark:bg-indigo-900/10' : ''} hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors group cursor-pointer`}
+                                  onClick={() => {
+                                    const newSelection = new Set(selectedItemIds);
+                                    if (isSelected) {
+                                      newSelection.delete(item.id);
+                                    } else {
+                                      newSelection.add(item.id);
+                                    }
+                                    setSelectedItemIds(newSelection);
+                                  }}
+                                >
+                                  <td className="px-4 py-3 text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => { }} // Handled by tr onClick
+                                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                    />
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-normal">
+                                    <span className={`text-sm ${isSelected ? 'font-bold text-indigo-600 dark:text-indigo-400' : 'font-medium text-gray-900 dark:text-white'}`}>
+                                      {item.item_name}
+                                    </span>
+                                    {item.category && (
+                                      <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+                                        <Tag className="w-2.5 h-2.5" /> {item.category}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase">{item.unit || '—'}</span>
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+                                      {item.price ? `₱${item.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '—'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
