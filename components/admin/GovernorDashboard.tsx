@@ -622,346 +622,354 @@ export const GovernorDashboard: React.FC<GovernorDashboardProps> = ({ user, onNa
             {/* Main Content */}
             <main className="flex-1 md:ml-72 min-h-screen bg-white dark:bg-gray-900 overflow-x-hidden">
                 <div className="p-4 md:p-8 pt-20 md:pt-8 max-w-[1600px] mx-auto">
-                    {activeTab === 'officers' && (
-                        <div>
-                            <h2 className="text-2xl font-bold text-gray-800 mb-6 dark:text-white">{user.department} Officers</h2>
+                    {loading ? (
+                        <div className="flex items-center justify-center min-h-[400px]">
+                            <Loader className="w-12 h-12 text-blue-900 animate-spin" />
+                        </div>
+                    ) : (
+                        <>
+                            {activeTab === 'officers' && (
+                                <div>
+                                    <h2 className="text-2xl font-bold text-gray-800 mb-6 dark:text-white">{user.department} Officers</h2>
 
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-                                {officers.map(officer => (
-                                    <div key={officer.role_id} className="p-4 border-b border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between last:border-0 hover:bg-gray-50 transition dark:border-gray-700 dark:hover:bg-gray-700 gap-4">
-                                        <div className="flex items-center gap-4 w-full sm:w-auto">
-                                            <div className="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-gray-600 dark:bg-gray-700 dark:text-gray-300 overflow-hidden">
-                                                {officer.avatar_url ? (
-                                                    <img src={officer.avatar_url} className="w-full h-full object-cover" alt="" />
-                                                ) : (
-                                                    officer.full_name.charAt(0)
-                                                )}
-                                            </div>
-                                            <div className="overflow-hidden">
-                                                <h4 className="font-bold text-gray-900 dark:text-white truncate">{officer.full_name}</h4>
-                                                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{officer.email}</p>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <span className={`text-xs px-2 py-0.5 rounded-full ${officer.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'}`}>
-                                                        {officer.status}
-                                                    </span>
-                                                    {officer.specific_role && <span className="text-xs text-blue-600 font-medium dark:text-blue-400">{officer.specific_role}</span>}
+                                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+                                        {officers.map(officer => (
+                                            <div key={officer.role_id} className="p-4 border-b border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between last:border-0 hover:bg-gray-50 transition dark:border-gray-700 dark:hover:bg-gray-700 gap-4">
+                                                <div className="flex items-center gap-4 w-full sm:w-auto">
+                                                    <div className="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-gray-600 dark:bg-gray-700 dark:text-gray-300 overflow-hidden">
+                                                        {officer.avatar_url ? (
+                                                            <img src={officer.avatar_url} className="w-full h-full object-cover" alt="" />
+                                                        ) : (
+                                                            officer.full_name.charAt(0)
+                                                        )}
+                                                    </div>
+                                                    <div className="overflow-hidden">
+                                                        <h4 className="font-bold text-gray-900 dark:text-white truncate">{officer.full_name}</h4>
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{officer.email}</p>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className={`text-xs px-2 py-0.5 rounded-full ${officer.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'}`}>
+                                                                {officer.status}
+                                                            </span>
+                                                            {officer.specific_role && <span className="text-xs text-blue-600 font-medium dark:text-blue-400">{officer.specific_role}</span>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="w-full sm:w-auto flex justify-end">
+                                                    {officer.status === 'pending' && (
+                                                        <button
+                                                            onClick={() => setSelectedOfficer(officer)}
+                                                            className="px-4 py-2 bg-blue-900 text-white rounded-lg text-sm font-medium hover:bg-blue-800"
+                                                        >
+                                                            Review Request
+                                                        </button>
+                                                    )}
+
+                                                    {(officer.status === 'active' || officer.status === 'disabled') && (
+                                                        <button
+                                                            onClick={() => handleEditOfficer(officer)}
+                                                            className={`p-2 transition ${officer.status === 'disabled' ? 'text-red-400 hover:text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                            title={officer.status === 'disabled' ? "Re-enable & Edit" : "Edit Permissions"}
+                                                        >
+                                                            {officer.status === 'disabled' ? <Power className="w-5 h-5" /> : <Settings className="w-5 h-5" />}
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
-                                        </div>
-
-                                        <div className="w-full sm:w-auto flex justify-end">
-                                            {officer.status === 'pending' && (
-                                                <button
-                                                    onClick={() => setSelectedOfficer(officer)}
-                                                    className="px-4 py-2 bg-blue-900 text-white rounded-lg text-sm font-medium hover:bg-blue-800"
-                                                >
-                                                    Review Request
-                                                </button>
-                                            )}
-
-                                            {(officer.status === 'active' || officer.status === 'disabled') && (
-                                                <button
-                                                    onClick={() => handleEditOfficer(officer)}
-                                                    className={`p-2 transition ${officer.status === 'disabled' ? 'text-red-400 hover:text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
-                                                    title={officer.status === 'disabled' ? "Re-enable & Edit" : "Edit Permissions"}
-                                                >
-                                                    {officer.status === 'disabled' ? <Power className="w-5 h-5" /> : <Settings className="w-5 h-5" />}
-                                                </button>
-                                            )}
-                                        </div>
+                                        ))}
+                                        {officers.length === 0 && <div className="p-8 text-center text-gray-500">No officers found.</div>}
                                     </div>
-                                ))}
-                                {officers.length === 0 && <div className="p-8 text-center text-gray-500">No officers found.</div>}
-                            </div>
-                        </div>
-                    )}
+                                </div>
+                            )}
 
-                    {activeTab === 'knowledge' && (
-                        <div>
-                            <h2 className="text-2xl font-bold text-gray-800 mb-6 dark:text-white">{user.department} Resources</h2>
+                            {activeTab === 'knowledge' && (
+                                <div>
+                                    <h2 className="text-2xl font-bold text-gray-800 mb-6 dark:text-white">{user.department} Resources</h2>
 
-                            <div className="hidden lg:grid grid-cols-2 gap-8">
-                                {/* Previous Desktop UI: Grouped Templates & Datasets */}
-                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
-                                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2 dark:text-white">
-                                        <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" /> Templates
-                                    </h3>
-                                    <p className="text-sm text-gray-500 mb-6 dark:text-gray-400">Upload up to TWO standard templates per document type (Docx).</p>
+                                    <div className="hidden lg:grid grid-cols-2 gap-8">
+                                        {/* Previous Desktop UI: Grouped Templates & Datasets */}
+                                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
+                                            <h3 className="font-bold text-lg mb-4 flex items-center gap-2 dark:text-white">
+                                                <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" /> Templates
+                                            </h3>
+                                            <p className="text-sm text-gray-500 mb-6 dark:text-gray-400">Upload up to TWO standard templates per document type (Docx).</p>
 
-                                    <div className="space-y-4">
-                                        {[DocumentType.ACTIVITY_PROPOSAL, DocumentType.OFFICIAL_LETTER, DocumentType.CONSTITUTION].map(type => (
-                                            <div key={type} className="flex flex-col gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 dark:bg-gray-700 dark:border-gray-600">
-                                                <p className="text-sm font-bold text-gray-700 dark:text-gray-200 border-b pb-2 dark:border-gray-600">{type}</p>
-                                                {[1, 2].map(index => {
-                                                    const exists = templates.find(t => t.document_type === type && t.template_index === index);
-                                                    const Icon = DocumentTypeIcon[type as DocumentType] || FileText;
+                                            <div className="space-y-4">
+                                                {[DocumentType.ACTIVITY_PROPOSAL, DocumentType.OFFICIAL_LETTER, DocumentType.CONSTITUTION].map(type => (
+                                                    <div key={type} className="flex flex-col gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 dark:bg-gray-700 dark:border-gray-600">
+                                                        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 border-b pb-2 dark:border-gray-600">{type}</p>
+                                                        {[1, 2].map(index => {
+                                                            const exists = templates.find(t => t.document_type === type && t.template_index === index);
+                                                            const Icon = DocumentTypeIcon[type as DocumentType] || FileText;
+                                                            return (
+                                                                <div key={index} className="flex items-center justify-between pl-2">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <Icon className={`w-4 h-4 ${exists ? 'text-green-500' : 'text-gray-400'}`} />
+                                                                        <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Template {index}</span>
+                                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${exists ? 'bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400' : 'bg-gray-200 text-gray-500 dark:bg-gray-600 dark:text-gray-400'}`}>
+                                                                            {exists ? 'Uploaded' : 'Missing'}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        {exists && (
+                                                                            <button
+                                                                                onClick={() => handleDeleteTemplate(type as DocumentType, index)}
+                                                                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                                                                                title="Remove Template"
+                                                                            >
+                                                                                <Trash2 className="w-4 h-4" />
+                                                                            </button>
+                                                                        )}
+                                                                        <button
+                                                                            onClick={() => openUploadModal('template', type as DocumentType, index)}
+                                                                            className="text-xs bg-white border border-gray-300 px-3 py-1.5 rounded shadow-sm hover:bg-gray-50 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:hover:bg-gray-500"
+                                                                        >
+                                                                            {exists ? 'Replace' : 'Upload'}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="font-bold text-lg flex items-center gap-2 dark:text-white">
+                                                    <Library className="w-5 h-5 text-purple-600 dark:text-purple-400" /> Datasets
+                                                </h3>
+                                                <button
+                                                    onClick={() => openUploadModal('dataset')}
+                                                    className="text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-lg flex items-center gap-1 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50"
+                                                >
+                                                    <Plus className="w-3 h-3" /> Add New
+                                                </button>
+                                            </div>
+                                            <p className="text-sm text-gray-500 mb-6 dark:text-gray-400">Upload multiple reference files for AI context.</p>
+
+                                            <div className="space-y-4">
+                                                {[DocumentType.ACTIVITY_PROPOSAL, DocumentType.OFFICIAL_LETTER].map(type => {
+                                                    const typeDatasets = datasets.filter(d => d.document_type === type);
                                                     return (
-                                                        <div key={index} className="flex items-center justify-between pl-2">
-                                                            <div className="flex items-center gap-3">
-                                                                <Icon className={`w-4 h-4 ${exists ? 'text-green-500' : 'text-gray-400'}`} />
-                                                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Template {index}</span>
-                                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${exists ? 'bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400' : 'bg-gray-200 text-gray-500 dark:bg-gray-600 dark:text-gray-400'}`}>
-                                                                    {exists ? 'Uploaded' : 'Missing'}
-                                                                </span>
+                                                        <div key={type} className="border border-gray-100 dark:border-gray-700 rounded-lg p-3">
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <h4 className="text-xs font-bold uppercase text-gray-400 dark:text-gray-500 tracking-wider text-[10px]">{type}</h4>
+                                                                <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full dark:text-gray-300 text-[10px]">{typeDatasets.length} files</span>
                                                             </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {exists && (
-                                                                    <button
-                                                                        onClick={() => handleDeleteTemplate(type as DocumentType, index)}
-                                                                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                                                                        title="Remove Template"
-                                                                    >
-                                                                        <Trash2 className="w-4 h-4" />
-                                                                    </button>
-                                                                )}
-                                                                <button
-                                                                    onClick={() => openUploadModal('template', type as DocumentType, index)}
-                                                                    className="text-xs bg-white border border-gray-300 px-3 py-1.5 rounded shadow-sm hover:bg-gray-50 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:hover:bg-gray-500"
-                                                                >
-                                                                    {exists ? 'Replace' : 'Upload'}
-                                                                </button>
-                                                            </div>
+
+                                                            {typeDatasets.length === 0 ? (
+                                                                <div className="text-xs text-gray-400 italic py-2 text-center">No datasets uploaded</div>
+                                                            ) : (
+                                                                <div className="space-y-2">
+                                                                    {typeDatasets.map(ds => (
+                                                                        <div key={ds.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
+                                                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                                                <FileText className="w-3 h-3 text-gray-400 dark:text-gray-400 flex-shrink-0" />
+                                                                                <span className="text-[11px] text-gray-700 truncate dark:text-gray-200 font-medium" title={ds.description}>{ds.description}</span>
+                                                                            </div>
+                                                                            <button onClick={() => handleDeleteDataset(ds.id)} className="text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 transition-colors">
+                                                                                <Trash2 className="w-3 h-3" />
+                                                                            </button>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     );
                                                 })}
                                             </div>
-                                        ))}
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h3 className="font-bold text-lg flex items-center gap-2 dark:text-white">
-                                            <Library className="w-5 h-5 text-purple-600 dark:text-purple-400" /> Datasets
-                                        </h3>
-                                        <button
-                                            onClick={() => openUploadModal('dataset')}
-                                            className="text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-lg flex items-center gap-1 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50"
-                                        >
-                                            <Plus className="w-3 h-3" /> Add New
-                                        </button>
-                                    </div>
-                                    <p className="text-sm text-gray-500 mb-6 dark:text-gray-400">Upload multiple reference files for AI context.</p>
-
-                                    <div className="space-y-4">
-                                        {[DocumentType.ACTIVITY_PROPOSAL, DocumentType.OFFICIAL_LETTER].map(type => {
-                                            const typeDatasets = datasets.filter(d => d.document_type === type);
-                                            return (
-                                                <div key={type} className="border border-gray-100 dark:border-gray-700 rounded-lg p-3">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <h4 className="text-xs font-bold uppercase text-gray-400 dark:text-gray-500 tracking-wider text-[10px]">{type}</h4>
-                                                        <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full dark:text-gray-300 text-[10px]">{typeDatasets.length} files</span>
+                                    {/* Mobile Grid Layout */}
+                                    <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {[DocumentType.ACTIVITY_PROPOSAL, DocumentType.OFFICIAL_LETTER, DocumentType.CONSTITUTION].map(type => (
+                                            <div key={type} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
+                                                <div className="flex items-center gap-3 mb-4 border-b pb-4 dark:border-gray-700">
+                                                    <div className="p-3 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+                                                        <FileText className="w-5 h-5" />
                                                     </div>
+                                                    <div>
+                                                        <h3 className="font-bold text-gray-900 dark:text-white leading-tight">{type}</h3>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">Templates</p>
+                                                    </div>
+                                                </div>
 
-                                                    {typeDatasets.length === 0 ? (
-                                                        <div className="text-xs text-gray-400 italic py-2 text-center">No datasets uploaded</div>
-                                                    ) : (
-                                                        <div className="space-y-2">
-                                                            {typeDatasets.map(ds => (
-                                                                <div key={ds.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
-                                                                    <div className="flex items-center gap-2 overflow-hidden">
-                                                                        <FileText className="w-3 h-3 text-gray-400 dark:text-gray-400 flex-shrink-0" />
-                                                                        <span className="text-[11px] text-gray-700 truncate dark:text-gray-200 font-medium" title={ds.description}>{ds.description}</span>
-                                                                    </div>
-                                                                    <button onClick={() => handleDeleteDataset(ds.id)} className="text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 transition-colors">
-                                                                        <Trash2 className="w-3 h-3" />
+                                                <div className="space-y-3">
+                                                    {[1, 2].map(index => {
+                                                        const exists = templates.find(t => t.document_type === type && t.template_index === index);
+                                                        return (
+                                                            <div key={index} className="flex items-center justify-between">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Template {index}</span>
+                                                                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded mt-1 w-fit ${exists ? 'bg-green-50 text-green-600 dark:bg-green-900/30' : 'bg-gray-50 text-gray-400 dark:bg-gray-700/50'}`}>
+                                                                        {exists ? 'Ready' : 'Missing'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    {exists && (
+                                                                        <button
+                                                                            onClick={() => handleDeleteTemplate(type as DocumentType, index)}
+                                                                            className="p-2 text-gray-400 hover:text-red-500 bg-gray-50 dark:bg-gray-700/50 rounded-lg transition-colors"
+                                                                        >
+                                                                            <Trash2 className="w-5 h-5" />
+                                                                        </button>
+                                                                    )}
+                                                                    <button
+                                                                        onClick={() => openUploadModal('template', type as DocumentType, index)}
+                                                                        className="text-sm font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg"
+                                                                    >
+                                                                        {exists ? 'Replace' : 'Upload'}
                                                                     </button>
                                                                 </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Mobile Grid Layout */}
-                            <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {[DocumentType.ACTIVITY_PROPOSAL, DocumentType.OFFICIAL_LETTER, DocumentType.CONSTITUTION].map(type => (
-                                    <div key={type} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
-                                        <div className="flex items-center gap-3 mb-4 border-b pb-4 dark:border-gray-700">
-                                            <div className="p-3 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
-                                                <FileText className="w-5 h-5" />
                                             </div>
+                                        ))}
+
+                                        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow flex flex-col justify-between">
                                             <div>
-                                                <h3 className="font-bold text-gray-900 dark:text-white leading-tight">{type}</h3>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">Templates</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            {[1, 2].map(index => {
-                                                const exists = templates.find(t => t.document_type === type && t.template_index === index);
-                                                return (
-                                                    <div key={index} className="flex items-center justify-between">
-                                                        <div className="flex flex-col">
-                                                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Template {index}</span>
-                                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded mt-1 w-fit ${exists ? 'bg-green-50 text-green-600 dark:bg-green-900/30' : 'bg-gray-50 text-gray-400 dark:bg-gray-700/50'}`}>
-                                                                {exists ? 'Ready' : 'Missing'}
-                                                            </span>
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-3 rounded-xl bg-purple-100 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">
+                                                            <Library className="w-5 h-5" />
                                                         </div>
-                                                        <div className="flex items-center gap-2">
-                                                            {exists && (
-                                                                <button
-                                                                    onClick={() => handleDeleteTemplate(type as DocumentType, index)}
-                                                                    className="p-2 text-gray-400 hover:text-red-500 bg-gray-50 dark:bg-gray-700/50 rounded-lg transition-colors"
-                                                                >
-                                                                    <Trash2 className="w-5 h-5" />
-                                                                </button>
-                                                            )}
-                                                            <button
-                                                                onClick={() => openUploadModal('template', type as DocumentType, index)}
-                                                                className="text-sm font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg"
-                                                            >
-                                                                {exists ? 'Replace' : 'Upload'}
-                                                            </button>
+                                                        <div>
+                                                            <h3 className="font-bold text-gray-900 dark:text-white leading-tight">Archive</h3>
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400">Reference Materials</p>
                                                         </div>
                                                     </div>
-                                                );
-                                            })}
+                                                </div>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2">AI-powered knowledge base for smarter document drafts.</p>
+                                            </div>
+                                            <button
+                                                onClick={() => openUploadModal('dataset')}
+                                                className="w-full py-3 bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400 rounded-xl font-bold text-sm hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                <Plus className="w-4 h-4" /> Add Dataset
+                                            </button>
                                         </div>
                                     </div>
-                                ))}
+                                </div>
+                            )}
+                            {activeTab === 'analytics' && (
+                                <Analytics type="department" department={user.department} />
+                            )}
 
-                                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow flex flex-col justify-between">
-                                    <div>
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-3 rounded-xl bg-purple-100 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">
-                                                    <Library className="w-5 h-5" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-bold text-gray-900 dark:text-white leading-tight">Archive</h3>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400">Reference Materials</p>
-                                                </div>
+
+                            {activeTab === 'settings' && (
+                                <div className="w-full text-left">
+                                    <div className="mb-8">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <div>
+                                                <h3 className="text-xl font-bold text-gray-800 dark:text-white">Department Signatories</h3>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">Manage names and positions that will appear on documents.</p>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setEditingSignatory(null);
+                                                    setSignatoryForm({ name: '', position: '' });
+                                                    setIsSignatoryModalOpen(true);
+                                                }}
+                                                className="px-4 py-2 bg-blue-900 text-white rounded-lg flex items-center gap-2 font-bold hover:bg-blue-800 transition"
+                                            >
+                                                <Plus className="w-4 h-4" /> Add Signatory
+                                            </button>
+                                        </div>
+
+                                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left border-collapse">
+                                                    <thead>
+                                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Name & Position</th>
+                                                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Status</th>
+                                                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                                        {signatories.map((sig) => (
+                                                            <tr key={sig.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
+                                                                <td className="px-6 py-4">
+                                                                    <div className="font-bold text-gray-900 dark:text-white">{sig.name}</div>
+                                                                    <div className="text-sm text-gray-500 italic">{sig.position}</div>
+                                                                </td>
+                                                                <td className="px-6 py-4 text-center">
+                                                                    <button
+                                                                        onClick={() => toggleSignatoryStatus(sig)}
+                                                                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${sig.is_active
+                                                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                                                                            : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                                                                            }`}
+                                                                    >
+                                                                        {sig.is_active ? 'Active' : 'Inactive'}
+                                                                    </button>
+                                                                </td>
+                                                                <td className="px-6 py-4 text-right">
+                                                                    <div className="flex justify-end gap-2">
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setEditingSignatory(sig);
+                                                                                setSignatoryForm({ name: sig.name, position: sig.position });
+                                                                                setIsSignatoryModalOpen(true);
+                                                                            }}
+                                                                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                                                                        >
+                                                                            <Edit2 className="w-4 h-4" />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleDeleteSignatory(sig.id)}
+                                                                            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                                                                        >
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        </button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {signatories.length === 0 && (
+                                                            <tr>
+                                                                <td colSpan={3} className="px-6 py-8 text-center text-gray-500 italic">
+                                                                    No signatories added yet.
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
                                             </div>
                                         </div>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2">AI-powered knowledge base for smarter document drafts.</p>
                                     </div>
-                                    <button
-                                        onClick={() => openUploadModal('dataset')}
-                                        className="w-full py-3 bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400 rounded-xl font-bold text-sm hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors flex items-center justify-center gap-2"
-                                    >
-                                        <Plus className="w-4 h-4" /> Add Dataset
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    {activeTab === 'analytics' && (
-                        <Analytics type="department" department={user.department} />
-                    )}
 
+                                    <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
+                                        <h3 className="text-xl font-bold text-gray-800 mb-6 dark:text-white">General Settings</h3>
+                                        <div className="mb-6">
+                                            <label className="block text-sm font-bold text-gray-700 mb-2 dark:text-gray-300">Organization Name</label>
+                                            <p className="text-xs text-gray-500 mb-3 dark:text-gray-400">This will be auto-filled in the Manual Drafting form for all members of your department.</p>
+                                            <input
+                                                type="text"
+                                                value={orgName}
+                                                onChange={(e) => setOrgName(e.target.value)}
+                                                placeholder="e.g. CITE Student Organization"
+                                                className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                            />
+                                        </div>
 
-                    {activeTab === 'settings' && (
-                        <div className="w-full">
-                            <div className="mb-8">
-                                <div className="flex items-center justify-between mb-6">
-                                    <div>
-                                        <h3 className="text-xl font-bold text-gray-800 dark:text-white">Department Signatories</h3>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">Manage names and positions that will appear on documents.</p>
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            setEditingSignatory(null);
-                                            setSignatoryForm({ name: '', position: '' });
-                                            setIsSignatoryModalOpen(true);
-                                        }}
-                                        className="px-4 py-2 bg-blue-900 text-white rounded-lg flex items-center gap-2 font-bold hover:bg-blue-800 transition"
-                                    >
-                                        <Plus className="w-4 h-4" /> Add Signatory
-                                    </button>
-                                </div>
-
-                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-left border-collapse">
-                                            <thead>
-                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Name & Position</th>
-                                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Status</th>
-                                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                                {signatories.map((sig) => (
-                                                    <tr key={sig.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
-                                                        <td className="px-6 py-4">
-                                                            <div className="font-bold text-gray-900 dark:text-white">{sig.name}</div>
-                                                            <div className="text-sm text-gray-500 italic">{sig.position}</div>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-center">
-                                                            <button
-                                                                onClick={() => toggleSignatoryStatus(sig)}
-                                                                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${sig.is_active
-                                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                                                                    : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
-                                                                    }`}
-                                                            >
-                                                                {sig.is_active ? 'Active' : 'Inactive'}
-                                                            </button>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-right">
-                                                            <div className="flex justify-end gap-2">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setEditingSignatory(sig);
-                                                                        setSignatoryForm({ name: sig.name, position: sig.position });
-                                                                        setIsSignatoryModalOpen(true);
-                                                                    }}
-                                                                    className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                                                                >
-                                                                    <Edit2 className="w-4 h-4" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleDeleteSignatory(sig.id)}
-                                                                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                                {signatories.length === 0 && (
-                                                    <tr>
-                                                        <td colSpan={3} className="px-6 py-8 text-center text-gray-500 italic">
-                                                            No signatories added yet.
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </tbody>
-                                        </table>
+                                        <button
+                                            onClick={handleSaveSettings}
+                                            disabled={isSavingOrg}
+                                            className="px-6 py-2.5 bg-blue-900 text-white rounded-lg font-bold hover:bg-blue-800 transition disabled:opacity-50 flex items-center gap-2"
+                                        >
+                                            {isSavingOrg ? <Loader className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                            Save Changes
+                                        </button>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
-                                <h3 className="text-xl font-bold text-gray-800 mb-6 dark:text-white">General Settings</h3>
-                                <div className="mb-6">
-                                    <label className="block text-sm font-bold text-gray-700 mb-2 dark:text-gray-300">Organization Name</label>
-                                    <p className="text-xs text-gray-500 mb-3 dark:text-gray-400">This will be auto-filled in the Manual Drafting form for all members of your department.</p>
-                                    <input
-                                        type="text"
-                                        value={orgName}
-                                        onChange={(e) => setOrgName(e.target.value)}
-                                        placeholder="e.g. CITE Student Organization"
-                                        className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                    />
-                                </div>
-
-                                <button
-                                    onClick={handleSaveSettings}
-                                    disabled={isSavingOrg}
-                                    className="px-6 py-2.5 bg-blue-900 text-white rounded-lg font-bold hover:bg-blue-800 transition disabled:opacity-50 flex items-center gap-2"
-                                >
-                                    {isSavingOrg ? <Loader className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                                    Save Changes
-                                </button>
-                            </div>
-                        </div>
+                            )}
+                        </>
                     )}
                 </div>
             </main>

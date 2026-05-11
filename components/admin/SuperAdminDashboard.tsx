@@ -1130,8 +1130,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, 
                                     </div>
                                 </div>
                             )}
-                        </>
-                    )}
+
 
                     {/* Upload Modal for Templates AND Datasets */}
                     {isUploadModalOpen && (
@@ -1489,6 +1488,8 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, 
                                 </div>
                             </div>
                         </div>
+                    )}
+                        </>
                     )}
 
                 </div>
