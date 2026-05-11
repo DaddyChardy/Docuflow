@@ -15,13 +15,15 @@ interface RichTextEditorProps {
   title?: string;
   onToggleVoice?: () => void;
   isVoiceActive?: boolean;
-  onSave?: (content: string) => void;
+  onSave?: (content: string, paperSize: 'A4' | 'LEGAL') => void;
   readOnly?: boolean;
   templateUrl?: string | null;
   documentType?: DocumentType;
   initialEstimate?: any[];
   templateIndex?: number;
   onTemplateChange?: (index: number) => void;
+  initialPaperSize?: 'A4' | 'LEGAL';
+  onPaperSizeChange?: (size: 'A4' | 'LEGAL') => void;
 }
 
 const PAPER_SIZES = {
@@ -41,7 +43,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   documentType,
   initialEstimate,
   templateIndex = 1,
-  onTemplateChange
+  onTemplateChange,
+  initialPaperSize = 'A4',
+  onPaperSizeChange
 }) => {
   const { showToast } = useNotification();
   const [isMaximized, setIsMaximized] = useState(false);
@@ -61,7 +65,11 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [manualEntries, setManualEntries] = useState<any[]>([]);
   const [isAddingManual, setIsAddingManual] = useState(false);
   const [newManualItem, setNewManualItem] = useState({ description: '', unit: '', quantity: 1, price: 0 });
-  const [paperSize, setPaperSize] = useState<'A4' | 'LEGAL'>('A4');
+  const [paperSize, setPaperSize] = useState<'A4' | 'LEGAL'>(initialPaperSize);
+
+  useEffect(() => {
+    setPaperSize(initialPaperSize);
+  }, [initialPaperSize]);
 
 
 
@@ -236,6 +244,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       setEditorKey(prev => prev + 1);
 
       showToast(`Paper size set to ${PAPER_SIZES[newSize].label}`, "success");
+      if (onPaperSizeChange) onPaperSizeChange(newSize);
     } catch (error) {
       console.error("Paper size change failed:", error);
       showToast("Failed to change paper size.", "error");
@@ -276,7 +285,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
         const innerContent = await extractOOXMLBody(blob);
         showToast("Document saved successfully!", "success");
-        onSave(innerContent);
+        onSave(innerContent, paperSize);
         return blob; // Return blob for use in export
       } catch (error) {
         console.error("Save Error:", error);

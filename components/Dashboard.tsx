@@ -47,7 +47,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate }) => {
           user_id: d.user_id,
           author_name: d.profiles?.full_name,
           author_avatar: d.profiles?.avatar_url,
-          template_index: d.template_index
+          template_index: d.template_index,
+          paper_size: d.paper_size
         }));
 
         setRecentDocs(mappedDocs);

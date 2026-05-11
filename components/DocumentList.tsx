@@ -62,7 +62,8 @@ export const DocumentList: React.FC<DocumentListProps> = ({ user, onNavigate, in
                     author_name: d.profiles?.full_name,
                     author_avatar: d.profiles?.avatar_url,
                     template_index: d.template_index,
-                    templateUrl: d.templateUrl
+                    templateUrl: d.templateUrl,
+                    paper_size: d.paper_size
                 }));
 
                 setDocs(mappedDocs);

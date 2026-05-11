@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, SpecificRole, Department, DocumentType, DocumentTypeIcon } from '../../types';
 import { supabase } from '../../services/supabaseClient';
-import { UserCheck, Users, Power, LogOut, Loader, Check, X, ShieldAlert, School, Home, Library, BookOpen, FileText, Plus, Trash2, Upload, AlertCircle, Settings, BarChart3, Menu, ChevronDown } from 'lucide-react';
+import { UserCheck, Users, Power, LogOut, Loader, Check, X, ShieldAlert, School, Home, Library, BookOpen, FileText, Plus, Trash2, Upload, AlertCircle, Settings, BarChart3, Menu, ChevronDown, Edit2 } from 'lucide-react';
 import { useNotification } from '../NotificationProvider';
 import { parseFile } from '../../services/fileUtils';
 import { generateDatasetContext, generateEmbedding } from '../../services/geminiService';
@@ -47,6 +47,11 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, 
     const [uploadTemplateIndex, setUploadTemplateIndex] = useState<number>(1);
     const [isUploading, setIsUploading] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [signatories, setSignatories] = useState<any[]>([]);
+    const [isSignatoryModalOpen, setIsSignatoryModalOpen] = useState(false);
+    const [editingSignatory, setEditingSignatory] = useState<any>(null);
+    const [signatoryForm, setSignatoryForm] = useState({ name: '', position: '' });
+    const [isSavingSignatory, setIsSavingSignatory] = useState(false);
 
     // Approval Modal State
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -149,11 +154,97 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, 
                 .maybeSingle();
             if (settingsData) setOrgName(settingsData.organization_name);
 
+            // Fetch Signatories
+            const { data: sigData } = await supabase
+                .from('department_signatories')
+                .select('*')
+                .eq('department', user.department)
+                .order('created_at', { ascending: true });
+            setSignatories(sigData || []);
+
         } catch (err) {
             console.error('Error fetching data:', err);
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleSaveSignatory = async () => {
+        if (!signatoryForm.name || !signatoryForm.position) {
+            showToast("Please fill in all fields", "warning");
+            return;
+        }
+
+        setIsSavingSignatory(true);
+        try {
+            if (editingSignatory) {
+                const { error } = await supabase
+                    .from('department_signatories')
+                    .update({
+                        name: signatoryForm.name,
+                        position: signatoryForm.position
+                    })
+                    .eq('id', editingSignatory.id);
+                if (error) throw error;
+                showToast("Signatory updated", "success");
+            } else {
+                const { error } = await supabase
+                    .from('department_signatories')
+                    .insert({
+                        department: user.department,
+                        name: signatoryForm.name,
+                        position: signatoryForm.position,
+                        is_active: true
+                    });
+                if (error) throw error;
+                showToast("Signatory added", "success");
+            }
+            setIsSignatoryModalOpen(false);
+            setEditingSignatory(null);
+            setSignatoryForm({ name: '', position: '' });
+            fetchData();
+        } catch (err) {
+            console.error(err);
+            showToast("Failed to save signatory", "error");
+        } finally {
+            setIsSavingSignatory(false);
+        }
+    };
+
+    const toggleSignatoryStatus = async (sig: any) => {
+        try {
+            const { error } = await supabase
+                .from('department_signatories')
+                .update({ is_active: !sig.is_active })
+                .eq('id', sig.id);
+            if (error) throw error;
+            fetchData();
+        } catch (err) {
+            console.error(err);
+            showToast("Failed to update status", "error");
+        }
+    };
+
+    const handleDeleteSignatory = (id: string) => {
+        confirmAction({
+            title: "Delete Signatory",
+            message: "Are you sure you want to remove this signatory? Existing documents won't be affected.",
+            variant: "error",
+            confirmLabel: "Delete",
+            onConfirm: async () => {
+                try {
+                    const { error } = await supabase
+                        .from('department_signatories')
+                        .delete()
+                        .eq('id', id);
+                    if (error) throw error;
+                    showToast("Signatory removed", "success");
+                    fetchData();
+                } catch (err) {
+                    showToast("Failed to remove signatory", "error");
+                }
+            }
+        });
     };
 
     const handleApprove = async () => {
@@ -1259,10 +1350,90 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, 
                     )}
 
                     {activeTab === 'settings' && (
-                        <div className="max-w-2xl">
-                            <h2 className="text-2xl font-bold text-gray-800 mb-6 dark:text-white">System Settings</h2>
+                        <div className="w-full">
+                            <div className="mb-8">
+                                <div className="flex items-center justify-between mb-6 text-left">
+                                    <div>
+                                        <h3 className="text-xl font-bold text-gray-800 dark:text-white">Department Signatories</h3>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">Manage names and positions that will appear on documents for {user.department}.</p>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            setEditingSignatory(null);
+                                            setSignatoryForm({ name: '', position: '' });
+                                            setIsSignatoryModalOpen(true);
+                                        }}
+                                        className="px-4 py-2 bg-blue-900 text-white rounded-lg flex items-center gap-2 font-bold hover:bg-blue-800 transition"
+                                    >
+                                        <Plus className="w-4 h-4" /> Add Signatory
+                                    </button>
+                                </div>
+
+                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Name & Position</th>
+                                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Status</th>
+                                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                                {signatories.map((sig) => (
+                                                    <tr key={sig.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
+                                                        <td className="px-6 py-4">
+                                                            <div className="font-bold text-gray-900 dark:text-white">{sig.name}</div>
+                                                            <div className="text-sm text-gray-500 italic">{sig.position}</div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center">
+                                                            <button
+                                                                onClick={() => toggleSignatoryStatus(sig)}
+                                                                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${sig.is_active
+                                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                                                                    : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                                                                    }`}
+                                                            >
+                                                                {sig.is_active ? 'Active' : 'Inactive'}
+                                                            </button>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right">
+                                                            <div className="flex justify-end gap-2">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setEditingSignatory(sig);
+                                                                        setSignatoryForm({ name: sig.name, position: sig.position });
+                                                                        setIsSignatoryModalOpen(true);
+                                                                    }}
+                                                                    className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                                                                >
+                                                                    <Edit2 className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteSignatory(sig.id)}
+                                                                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {signatories.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan={3} className="px-6 py-8 text-center text-gray-500 italic">
+                                                            No signatories added yet.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
 
                             <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
+                                <h3 className="text-xl font-bold text-gray-800 mb-6 dark:text-white">System Settings</h3>
                                 <div className="mb-6">
                                     <label className="block text-sm font-bold text-gray-700 mb-2 dark:text-gray-300">Organization Name</label>
                                     <p className="text-xs text-gray-500 mb-3 dark:text-gray-400">This will be auto-filled in the Manual Drafting form for all members of the system administration.</p>
@@ -1415,6 +1586,53 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user, 
                         <div className="text-center">
                             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Processing Request</h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400">Please wait while we update the system...</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Signatory Modal */}
+            {isSignatoryModalOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[70] animate-fade-in backdrop-blur-sm">
+                    <div className="bg-white rounded-xl max-w-md w-full p-6 dark:bg-gray-800 dark:border dark:border-gray-700">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold dark:text-white">
+                                {editingSignatory ? 'Edit Signatory' : 'Add New Signatory'}
+                            </h3>
+                            <button onClick={() => setIsSignatoryModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><X className="w-5 h-5" /></button>
+                        </div>
+
+                        <div className="space-y-4 mb-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Full Name</label>
+                                <input
+                                    type="text"
+                                    value={signatoryForm.name}
+                                    onChange={(e) => setSignatoryForm({ ...signatoryForm, name: e.target.value })}
+                                    placeholder="e.g. Juan Dela Cruz"
+                                    className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Position / Title</label>
+                                <input
+                                    type="text"
+                                    value={signatoryForm.position}
+                                    onChange={(e) => setSignatoryForm({ ...signatoryForm, position: e.target.value })}
+                                    placeholder="e.g. Executive Director"
+                                    className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button onClick={() => setIsSignatoryModalOpen(false)} className="flex-1 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-300 dark:hover:bg-gray-700 font-bold">Cancel</button>
+                            <button
+                                onClick={handleSaveSignatory}
+                                disabled={isSavingSignatory}
+                                className="flex-1 bg-blue-900 text-white py-2.5 rounded-lg hover:bg-blue-800 font-bold disabled:opacity-50"
+                            >
+                                {isSavingSignatory ? <Loader className="w-5 h-5 animate-spin mx-auto" /> : (editingSignatory ? 'Update' : 'Add Signatory')}
+                            </button>
                         </div>
                     </div>
                 </div>

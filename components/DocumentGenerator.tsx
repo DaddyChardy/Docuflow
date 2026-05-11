@@ -4,7 +4,7 @@ import { DocumentType, GeneratedDocument, DocumentVersion, User, DocumentTypePer
 import { ConfirmModal } from './ConfirmModal';
 import { generateDocument, LiveSession, generateDocumentTitle, estimateBudget } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
-import { Bot, ArrowLeft, FormInput, Mic, PhoneOff, GripVertical, Eye, CheckCircle, Info, AlertTriangle, Plus, Trash2, UserPlus, ChevronDown, X } from 'lucide-react';
+import { Bot, ArrowLeft, FormInput, Mic, PhoneOff, GripVertical, Eye, CheckCircle, Info, AlertTriangle, Plus, Trash2, UserPlus, ChevronDown, X, UserCheck } from 'lucide-react';
 import { useNotification } from './NotificationProvider';
 import { RichTextEditor } from './RichTextEditor';
 import * as THREE from 'three';
@@ -137,6 +137,13 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
   const [budgetEstimate, setBudgetEstimate] = useState<any[] | undefined>(undefined);
   const [templateUrl, setTemplateUrl] = useState<string | null>(initialDoc?.templateUrl || null);
   const [templateIndex, setTemplateIndex] = useState<number>(initialDoc?.template_index || 1);
+  const [availableSignatories, setAvailableSignatories] = useState<any[]>([]);
+  const [selectedSignatoryIds, setSelectedSignatoryIds] = useState<Set<string>>(new Set());
+  const [paperSize, setPaperSize] = useState<'A4' | 'LEGAL'>(initialDoc?.paper_size || 'A4');
+  
+  useEffect(() => {
+    setPaperSize(initialDoc?.paper_size || 'A4');
+  }, [initialDoc]);
 
   useEffect(() => {
     const fetchTemplateUrl = async () => {
@@ -180,6 +187,37 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
     };
     fetchOrgName();
   }, [user.department]);
+ 
+  useEffect(() => {
+    const fetchSignatories = async () => {
+      if (!user.department) return;
+      try {
+        const { data, error } = await supabase
+          .from('department_signatories')
+          .select('*')
+          .eq('department', user.department)
+          .eq('is_active', true)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        setAvailableSignatories(data || []);
+ 
+        // If it's a new document, maybe auto-select the user if they are a signatory?
+        // Or just leave it empty.
+      } catch (e) {
+        console.error("Error fetching signatories:", e);
+      }
+    };
+    fetchSignatories();
+  }, [user.department]);
+ 
+  useEffect(() => {
+    // Sync selectedSignatoryIds with formData.signatories
+    const selected = availableSignatories.filter(s => selectedSignatoryIds.has(s.id));
+    setFormData(prev => ({
+      ...prev,
+      signatories: selected.map(s => ({ name: s.name, position: s.position }))
+    }));
+  }, [selectedSignatoryIds, availableSignatories]);
 
   const [inputMode, setInputMode] = useState<'form' | 'chat'>('form');
   const [visibility, setVisibility] = useState<'private' | 'department'>(initialDoc?.visibility || 'private');
@@ -413,25 +451,6 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSignatoryChange = (index: number, field: 'name' | 'position', value: string) => {
-    const newSignatories = [...formData.signatories];
-    newSignatories[index] = { ...newSignatories[index], [field]: value };
-    setFormData({ ...formData, signatories: newSignatories });
-  };
-
-  const addSignatory = () => {
-    setFormData({
-      ...formData,
-      signatories: [...formData.signatories, { name: '', position: '' }]
-    });
-  };
-
-  const removeSignatory = (index: number) => {
-    if (formData.signatories.length <= 1) return;
-    const newSignatories = formData.signatories.filter((_, i) => i !== index);
-    setFormData({ ...formData, signatories: newSignatories });
-  };
-
   const handleGenerate = async (overrideData?: Record<string, string>) => {
     setLoading(true);
     setLoadingMessage('Drafting your document...');
@@ -490,7 +509,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
     return title;
   };
 
-  const handleSaveToStorage = async (content: string) => {
+  const handleSaveToStorage = async (content: string, size?: 'A4' | 'LEGAL') => {
     if (!user || !user.id) {
       showToast("You must be logged in to save documents.", "warning");
       return;
@@ -543,7 +562,8 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
         visibility,
         department: user.department,
         versions: updatedVersions,
-        template_index: templateIndex
+        template_index: templateIndex,
+        paper_size: size || paperSize
       };
       if (currentDocId) {
         const { error } = await supabase.from('documents').update(docData).eq('id', currentDocId);
@@ -753,43 +773,57 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
 
                   {/* Signatories Section for Activity Proposal */}
                   <div className="space-y-3 p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-700">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-2">
                       <h4 className="text-sm font-bold flex items-center gap-2">
-                        <UserPlus className="w-4 h-4 text-blue-500" /> Signatories
+                        <UserCheck className="w-4 h-4 text-blue-500" /> Select Signatories
                       </h4>
-                      <button
-                        onClick={addSignatory}
-                        className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md transition-all"
-                      >
-                        <Plus className="w-3 h-3" /> Add Signatory
-                      </button>
                     </div>
-                    <div className="space-y-3">
-                      {formData.signatories.map((sig: any, index: number) => (
-                        <div key={index} className="flex flex-col gap-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-600 shadow-sm relative group/sig">
-                          <input
-                            placeholder="Name"
-                            value={sig.name}
-                            onChange={(e) => handleSignatoryChange(index, 'name', e.target.value)}
-                            className="text-sm w-full p-2 border-b dark:border-gray-600 focus:border-blue-500 outline-none bg-transparent"
-                          />
-                          <input
-                            placeholder="Position"
-                            value={sig.position}
-                            onChange={(e) => handleSignatoryChange(index, 'position', e.target.value)}
-                            className="text-sm w-full p-2 bg-transparent outline-none italic text-gray-500"
-                          />
-                          {formData.signatories.length > 1 && (
-                            <button
-                              onClick={() => removeSignatory(index)}
-                              className="absolute top-2 right-2 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-all opacity-0 group-hover/sig:opacity-100"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                      {availableSignatories.map((sig) => {
+                        const isSelected = selectedSignatoryIds.has(sig.id);
+                        return (
+                          <label
+                            key={sig.id}
+                            className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer group ${isSelected
+                              ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
+                              : 'bg-white border-gray-100 dark:bg-gray-800 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
+                              }`}
+                          >
+                            <div className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 dark:border-gray-600 bg-transparent'}`}>
+                              {isSelected && <CheckCircle className="w-3.5 h-3.5" />}
+                            </div>
+                            <input
+                              type="checkbox"
+                              className="hidden"
+                              checked={isSelected}
+                              onChange={() => {
+                                const newIds = new Set(selectedSignatoryIds);
+                                if (newIds.has(sig.id)) newIds.delete(sig.id);
+                                else newIds.add(sig.id);
+                                setSelectedSignatoryIds(newIds);
+                              }}
+                            />
+                            <div className="flex-1 overflow-hidden">
+                              <p className={`text-sm font-bold transition-colors ${isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-200'}`}>
+                                {sig.name}
+                              </p>
+                              <p className="text-xs text-gray-500 italic truncate">{sig.position}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                      {availableSignatories.length === 0 && (
+                        <div className="text-center py-6 px-4">
+                          <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto mb-2 opacity-50" />
+                          <p className="text-xs text-gray-500">No signatories found for your department. Please contact your Governor to add them in the Admin Dashboard.</p>
                         </div>
-                      ))}
+                      )}
                     </div>
+                    {selectedSignatoryIds.size > 0 && (
+                      <div className="pt-2 mt-2 border-t border-gray-100 dark:border-gray-700">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Selected: {selectedSignatoryIds.size}</p>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -870,43 +904,57 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
 
                   {/* Signatories Section for Official Letter */}
                   <div className="space-y-3 p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-700">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-2">
                       <h4 className="text-sm font-bold flex items-center gap-2">
-                        <UserPlus className="w-4 h-4 text-blue-500" /> Signatories
+                        <UserCheck className="w-4 h-4 text-blue-500" /> Select Signatories
                       </h4>
-                      <button
-                        onClick={addSignatory}
-                        className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md transition-all"
-                      >
-                        <Plus className="w-3 h-3" /> Add Signatory
-                      </button>
                     </div>
-                    <div className="space-y-3">
-                      {formData.signatories.map((sig: any, index: number) => (
-                        <div key={index} className="flex flex-col gap-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-600 shadow-sm relative group/sig">
-                          <input
-                            placeholder="Name"
-                            value={sig.name}
-                            onChange={(e) => handleSignatoryChange(index, 'name', e.target.value)}
-                            className="text-sm w-full p-2 border-b dark:border-gray-600 focus:border-blue-500 outline-none bg-transparent"
-                          />
-                          <input
-                            placeholder="Position"
-                            value={sig.position}
-                            onChange={(e) => handleSignatoryChange(index, 'position', e.target.value)}
-                            className="text-sm w-full p-2 bg-transparent outline-none italic text-gray-500"
-                          />
-                          {formData.signatories.length > 1 && (
-                            <button
-                              onClick={() => removeSignatory(index)}
-                              className="absolute top-2 right-2 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-all opacity-0 group-hover/sig:opacity-100"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                      {availableSignatories.map((sig) => {
+                        const isSelected = selectedSignatoryIds.has(sig.id);
+                        return (
+                          <label
+                            key={sig.id}
+                            className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer group ${isSelected
+                              ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
+                              : 'bg-white border-gray-100 dark:bg-gray-800 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
+                              }`}
+                          >
+                            <div className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 dark:border-gray-600 bg-transparent'}`}>
+                              {isSelected && <CheckCircle className="w-3.5 h-3.5" />}
+                            </div>
+                            <input
+                              type="checkbox"
+                              className="hidden"
+                              checked={isSelected}
+                              onChange={() => {
+                                const newIds = new Set(selectedSignatoryIds);
+                                if (newIds.has(sig.id)) newIds.delete(sig.id);
+                                else newIds.add(sig.id);
+                                setSelectedSignatoryIds(newIds);
+                              }}
+                            />
+                            <div className="flex-1 overflow-hidden">
+                              <p className={`text-sm font-bold transition-colors ${isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-200'}`}>
+                                {sig.name}
+                              </p>
+                              <p className="text-xs text-gray-500 italic truncate">{sig.position}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                      {availableSignatories.length === 0 && (
+                        <div className="text-center py-6 px-4">
+                          <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto mb-2 opacity-50" />
+                          <p className="text-xs text-gray-500">No signatories found for your department. Please contact your Governor to add them in the Admin Dashboard.</p>
                         </div>
-                      ))}
+                      )}
                     </div>
+                    {selectedSignatoryIds.size > 0 && (
+                      <div className="pt-2 mt-2 border-t border-gray-100 dark:border-gray-700">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Selected: {selectedSignatoryIds.size}</p>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -986,6 +1034,8 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ user, init
                 initialEstimate={budgetEstimate}
                 templateIndex={templateIndex}
                 onTemplateChange={setTemplateIndex}
+                initialPaperSize={paperSize}
+                onPaperSizeChange={setPaperSize}
               />
             </div>
           </div>

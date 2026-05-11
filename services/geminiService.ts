@@ -420,7 +420,11 @@ class GeminiService {
             const isHeader = isAllUppercase || isKnownHeader;
 
             // Specifically handle and remove Signatories header
-            if (textContent.toUpperCase().includes("SIGNATORIES") && textContent.length < 25) {
+            // Users don't want "Signatories" or "SIGNATORIES" or "Prepared by:" headers
+            const cleanLower = textContent.toLowerCase();
+            const isSignatoriesHeader = (cleanLower.includes("signatories") || cleanLower.includes("prepared by")) && textContent.length < 30;
+            
+            if (isSignatoriesHeader) {
                 return '';
             }
 

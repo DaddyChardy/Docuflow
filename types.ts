@@ -96,6 +96,7 @@ export interface GeneratedDocument {
   author_avatar?: string;
   template_index?: number;
   templateUrl?: string | null;
+  paper_size?: 'A4' | 'LEGAL';
 }
 
 export interface ChatMessage {
